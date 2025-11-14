@@ -19,16 +19,44 @@ export default function SignIn() {
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      setError(error.message);
+      console.error('Sign in error:', error);
+
+      // Better error messages
+      if (error.message.includes('Invalid login credentials')) {
+        setError(
+          'Invalid email or password. If you just confirmed your email, make sure to use the same password you set during signup.'
+        );
+      } else if (error.message.includes('Email not confirmed')) {
+        setError(
+          'Please confirm your email address. Check your inbox for the confirmation link.'
+        );
+      } else {
+        setError(error.message);
+      }
       setLoading(false);
     } else {
-      router.push('/');
+      console.log('Sign in successful:', data.user?.email);
+
+      // Check if user has completed setup
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', data.user!.id)
+        .single();
+
+      if (!profile) {
+        console.log('No profile found, redirecting to setup');
+        router.push('/setup');
+      } else {
+        console.log('Profile found, redirecting to main app');
+        router.push('/');
+      }
       router.refresh();
     }
   };
