@@ -72,28 +72,38 @@ export async function POST(request: Request) {
       author: author,
     };
 
-    // Trigger AI responses via Supabase Edge Function (fire-and-forget)
+    // Trigger AI responses via Supabase Edge Function
     if (mentions && mentions.length > 0) {
       console.log('🔔 Triggering', mentions.length, 'AI response(s) via Edge Function');
 
-      // Call Edge Function for each mentioned assistant (don't await - let it run in background)
-      mentions.forEach((assistantId: string) => {
-        supabase.functions.invoke('ai-respond', {
-          body: {
-            assistantId,
-            channelId,
-            userMessage: content,
-          },
-        }).then(result => {
-          if (result.error) {
-            console.error('  ✗ Edge Function error for', assistantId, ':', result.error);
-          } else {
-            console.log('  ✓ Edge Function triggered for', assistantId);
+      // Call Edge Function for each mentioned assistant and await to catch errors
+      const edgeFunctionResults = await Promise.allSettled(
+        mentions.map(async (assistantId: string) => {
+          try {
+            console.log('  → Invoking Edge Function for assistant:', assistantId);
+            const result = await supabase.functions.invoke('ai-respond', {
+              body: {
+                assistantId,
+                channelId,
+                userMessage: content,
+              },
+            });
+
+            if (result.error) {
+              console.error('  ✗ Edge Function error for', assistantId, ':', result.error);
+              return { assistantId, success: false, error: result.error };
+            } else {
+              console.log('  ✓ Edge Function succeeded for', assistantId);
+              return { assistantId, success: true, data: result.data };
+            }
+          } catch (err) {
+            console.error('  ✗ Failed to invoke Edge Function for', assistantId, ':', err);
+            return { assistantId, success: false, error: err };
           }
-        }).catch(err => {
-          console.error('  ✗ Failed to invoke Edge Function:', err);
-        });
-      });
+        })
+      );
+
+      console.log('Edge Function invocation results:', edgeFunctionResults);
     }
 
     return NextResponse.json({
