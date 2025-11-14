@@ -104,12 +104,30 @@ export async function POST(request: Request) {
             }),
           });
 
+          console.log('  → Response status:', response.status, response.statusText);
+
+          // Get response text first to handle both JSON and HTML
+          const responseText = await response.text();
+          console.log('  → Response text preview:', responseText.substring(0, 200));
+
           if (!response.ok) {
-            const errorData = await response.json();
+            let errorData;
+            try {
+              errorData = JSON.parse(responseText);
+            } catch {
+              errorData = { error: 'Non-JSON response', responsePreview: responseText.substring(0, 200) };
+            }
             console.error(`  ✗ AI response failed for ${assistantId}:`, errorData);
             aiTriggerResults.push({ assistantId, success: false, error: errorData });
           } else {
-            const data = await response.json();
+            let data;
+            try {
+              data = JSON.parse(responseText);
+            } catch {
+              console.error('  ✗ Success response but invalid JSON:', responseText.substring(0, 200));
+              aiTriggerResults.push({ assistantId, success: false, error: 'Invalid JSON response' });
+              continue;
+            }
             console.log('  ✓ AI response triggered successfully for', assistantId);
             aiTriggerResults.push({ assistantId, success: true });
           }

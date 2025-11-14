@@ -161,7 +161,11 @@ export function PageClient({
           if (result.success) {
             console.log('  ✓ AI response triggered for assistant:', result.assistantId);
           } else {
-            console.error('  ✗ AI response failed for assistant:', result.assistantId, result.error);
+            console.error('  ✗ AI response failed for assistant:', result.assistantId);
+            console.error('     Error details:', result.error);
+            if (result.error?.responsePreview) {
+              console.error('     Response preview:', result.error.responsePreview);
+            }
           }
         });
       } else if (mentions && mentions.length > 0) {
