@@ -12,16 +12,18 @@ interface CreateAssistantModalProps {
 
 const MODEL_OPTIONS = {
   openai: [
-    { value: 'gpt-4o', label: 'GPT-4o (Most capable)' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Fast & efficient)' },
+    { value: 'gpt-5.1-thinking', label: 'GPT-5.1 Thinking (Most powerful)' },
+    { value: 'gpt-5.1-instant', label: 'GPT-5.1 Instant (Workhorse)' },
+    { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano (Fast & efficient)' },
   ],
   anthropic: [
-    { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet (Best)' },
-    { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku (Fast)' },
+    { value: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5 (Most powerful)' },
+    { value: 'claude-haiku-4.5', label: 'Claude Haiku 4.5 (Fast & efficient)' },
   ],
   google: [
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Fast)' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Most powerful)' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Workhorse)' },
+    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (Fast & efficient)' },
   ],
 };
 
@@ -30,9 +32,9 @@ export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssis
   const [role, setRole] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [modelProvider, setModelProvider] = useState<'openai' | 'anthropic' | 'google'>('openai');
-  const [modelName, setModelName] = useState('gpt-4o');
+  const [modelName, setModelName] = useState('gpt-5.1-instant');
   const [temperature, setTemperature] = useState(0.7);
-  const [maxTokens, setMaxTokens] = useState(2000);
+  const [maxTokens, setMaxTokens] = useState(4000);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,7 +69,7 @@ export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssis
       setRole('');
       setSystemPrompt('');
       setTemperature(0.7);
-      setMaxTokens(2000);
+      setMaxTokens(4000);
 
       onSuccess();
       onClose();
@@ -237,8 +239,8 @@ export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssis
                       value={maxTokens}
                       onChange={(e) => setMaxTokens(parseInt(e.target.value))}
                       min="100"
-                      max="4000"
-                      step="100"
+                      max="10000"
+                      step="500"
                       className="w-full bg-background-secondary border border-border rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-accent transition-colors"
                     />
                   </div>

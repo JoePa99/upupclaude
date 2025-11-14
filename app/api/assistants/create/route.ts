@@ -15,9 +15,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { name, role, systemPrompt, modelProvider, modelName, temperature, maxTokens } = await request.json();
+    const body = await request.json();
+    console.log('Create assistant request body:', body);
+
+    const { name, role, systemPrompt, modelProvider, modelName, temperature, maxTokens } = body;
 
     if (!name || !role || !systemPrompt || !modelProvider || !modelName) {
+      console.error('Missing required fields:', { name, role, systemPrompt, modelProvider, modelName });
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -25,11 +29,13 @@ export async function POST(request: Request) {
     }
 
     // Get user's workspace
-    const { data: userProfile } = await (supabase
+    const { data: userProfile, error: profileError } = await (supabase
       .from('users') as any)
       .select('workspace_id')
       .eq('id', user.id)
       .single();
+
+    console.log('User profile:', userProfile, 'Error:', profileError);
 
     if (!userProfile) {
       return NextResponse.json(
@@ -38,25 +44,34 @@ export async function POST(request: Request) {
       );
     }
 
+    const assistantData = {
+      workspace_id: userProfile.workspace_id,
+      name: name.trim(),
+      role: role.trim(),
+      system_prompt: systemPrompt.trim(),
+      model_provider: modelProvider,
+      model_name: modelName,
+      temperature: temperature ?? 0.7,
+      max_tokens: maxTokens ?? 4000,
+      status: 'online',
+      created_by: user.id,
+    };
+
+    console.log('Creating assistant with data:', assistantData);
+
     // Create assistant
     const { data: assistant, error: assistantError } = await (supabase
       .from('assistants') as any)
-      .insert({
-        workspace_id: userProfile.workspace_id,
-        name: name.trim(),
-        role: role.trim(),
-        system_prompt: systemPrompt.trim(),
-        model_provider: modelProvider,
-        model_name: modelName,
-        temperature: temperature ?? 0.7,
-        max_tokens: maxTokens ?? 2000,
-        status: 'online',
-        created_by: user.id,
-      })
+      .insert(assistantData)
       .select()
       .single();
 
-    if (assistantError) throw assistantError;
+    if (assistantError) {
+      console.error('Database error creating assistant:', assistantError);
+      throw assistantError;
+    }
+
+    console.log('Assistant created successfully:', assistant);
 
     return NextResponse.json({
       success: true,
@@ -65,7 +80,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Error creating assistant:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to create assistant' },
+      { error: error.message || 'Failed to create assistant', details: error },
       { status: 500 }
     );
   }
