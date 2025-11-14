@@ -68,6 +68,35 @@ export async function POST(request: Request) {
       author: author,
     };
 
+    // Trigger AI responses for mentioned assistants (async, don't wait)
+    if (mentions && mentions.length > 0) {
+      console.log('Triggering AI responses for mentions:', mentions);
+
+      // Fire and forget - trigger AI responses in the background
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000';
+
+      mentions.forEach(async (assistantId: string) => {
+        try {
+          await fetch(`${baseUrl}/api/ai/respond`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messageId: message.id,
+              assistantId: assistantId,
+              channelId: channelId,
+              userMessage: content,
+            }),
+          });
+        } catch (error) {
+          console.error(`Failed to trigger AI response for ${assistantId}:`, error);
+        }
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: completeMessage,
