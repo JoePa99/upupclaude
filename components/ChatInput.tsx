@@ -19,29 +19,49 @@ export function ChatInput({ assistants, onSendMessage }: ChatInputProps) {
       handleSend();
     }
 
-    // Show mention dropdown when @ is typed
-    if (e.key === '@') {
+    // Show mention dropdown when @ is typed (and prevent default to avoid double @)
+    if (e.key === '@' || (e.key === '2' && e.shiftKey)) {
+      e.preventDefault();
+      setMessage((prev) => prev + '@');
       setShowMentions(true);
+    }
+
+    // Close mention dropdown on Escape
+    if (e.key === 'Escape') {
+      setShowMentions(false);
     }
   };
 
   const handleSend = () => {
     if (!message.trim()) return;
 
-    // Extract mentions
-    const mentionRegex = /@(\w+)/g;
+    console.log('Sending message:', message);
+
+    // Extract mentions - match @word pattern
+    const mentionRegex = /@([a-zA-Z0-9_]+)/g;
     const mentions: string[] = [];
     let match;
 
     while ((match = mentionRegex.exec(message)) !== null) {
-      const mentionName = match[1].toLowerCase().replace(/_/g, ' ');
-      const assistant = assistants.find((a) =>
-        a.name.toLowerCase().includes(mentionName)
-      );
+      const mentionText = match[1].toLowerCase(); // e.g., "sales_assistant"
+      console.log('Found mention text:', mentionText);
+
+      // Try to match against assistant names (converted to slug format)
+      const assistant = assistants.find((a) => {
+        const assistantSlug = a.name.toLowerCase().replace(/\s+/g, '_');
+        console.log('Comparing', mentionText, 'with', assistantSlug);
+        return assistantSlug === mentionText || a.name.toLowerCase().includes(mentionText);
+      });
+
       if (assistant) {
+        console.log('Matched assistant:', assistant.name, assistant.id);
         mentions.push(assistant.id);
+      } else {
+        console.log('No assistant found for mention:', mentionText);
       }
     }
+
+    console.log('Final mentions array:', mentions);
 
     onSendMessage(message, mentions);
     setMessage('');
@@ -49,8 +69,15 @@ export function ChatInput({ assistants, onSendMessage }: ChatInputProps) {
   };
 
   const insertMention = (assistantName: string) => {
-    const formattedName = assistantName.toLowerCase().replace(/ /g, '_');
-    setMessage((prev) => prev + `@${formattedName} `);
+    const formattedName = assistantName.toLowerCase().replace(/\s+/g, '_');
+    setMessage((prev) => {
+      // If the last character is @, replace it with the full mention
+      // Otherwise just append the mention
+      if (prev.endsWith('@')) {
+        return prev.slice(0, -1) + `@${formattedName} `;
+      }
+      return prev + `@${formattedName} `;
+    });
     setShowMentions(false);
   };
 
