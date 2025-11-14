@@ -22,6 +22,27 @@ export async function POST(request: Request) {
     // Use admin client to bypass RLS for all setup operations
     const adminSupabase = createAdminClient();
 
+    // Check if user already has a profile and workspace
+    const { data: existingProfile } = await (adminSupabase.from('users') as any)
+      .select('*, workspaces(*)')
+      .eq('id', user.id)
+      .single();
+
+    if (existingProfile && existingProfile.workspaces) {
+      // User already has workspace, return it
+      const { data: channel } = await (adminSupabase.from('channels') as any)
+        .select()
+        .eq('workspace_id', existingProfile.workspace_id)
+        .eq('name', 'general')
+        .single();
+
+      return NextResponse.json({
+        success: true,
+        workspace: existingProfile.workspaces,
+        channel: channel,
+      });
+    }
+
     // 1. Create workspace
     const { data: workspace, error: workspaceError } = await (adminSupabase
       .from('workspaces') as any)
@@ -35,8 +56,8 @@ export async function POST(request: Request) {
 
     if (workspaceError) throw workspaceError;
 
-    // 2. Create user profile (using admin to bypass RLS)
-    const { error: profileError } = await (adminSupabase.from('users') as any).insert({
+    // 2. Create or update user profile (using upsert to handle retries)
+    const { error: profileError } = await (adminSupabase.from('users') as any).upsert({
       id: user.id,
       workspace_id: workspace.id,
       name: userName,
