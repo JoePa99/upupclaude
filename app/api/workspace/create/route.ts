@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
+import type { Database } from '@/types/database';
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -18,24 +19,27 @@ export async function POST(request: Request) {
   try {
     const { workspaceName, userName, seats = 5 } = await request.json();
 
-    // Use admin client to bypass RLS for setup operations
+    // Use admin client to bypass RLS for all setup operations
     const adminSupabase = createAdminClient();
 
     // 1. Create workspace
+    type WorkspaceInsert = Database['public']['Tables']['workspaces']['Insert'];
+    const workspaceData: WorkspaceInsert = {
+      name: workspaceName,
+      seats: seats,
+      message_limit: seats * 150, // 150 messages per seat
+    };
+
     const { data: workspace, error: workspaceError } = await adminSupabase
       .from('workspaces')
-      .insert({
-        name: workspaceName,
-        seats: seats,
-        message_limit: seats * 150, // 150 messages per seat
-      })
+      .insert(workspaceData)
       .select()
       .single();
 
     if (workspaceError) throw workspaceError;
 
-    // 2. Create user profile
-    const { error: profileError } = await supabase.from('users').insert({
+    // 2. Create user profile (using admin to bypass RLS)
+    const { error: profileError } = await adminSupabase.from('users').insert({
       id: user.id,
       workspace_id: workspace.id,
       name: userName,
@@ -46,7 +50,7 @@ export async function POST(request: Request) {
     if (profileError) throw profileError;
 
     // 3. Create default #general channel
-    const { data: channel, error: channelError } = await supabase
+    const { data: channel, error: channelError } = await adminSupabase
       .from('channels')
       .insert({
         workspace_id: workspace.id,
@@ -61,7 +65,7 @@ export async function POST(request: Request) {
     if (channelError) throw channelError;
 
     // 4. Add user to the channel
-    const { error: memberError } = await supabase
+    const { error: memberError } = await adminSupabase
       .from('channel_members')
       .insert({
         channel_id: channel.id,
