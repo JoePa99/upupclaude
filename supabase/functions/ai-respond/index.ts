@@ -13,7 +13,116 @@ interface AIRespondRequest {
   userMessage: string;
 }
 
-async function callOpenAI(assistant: any, userMessage: string): Promise<string> {
+interface ContextChunk {
+  content: string;
+  metadata: any;
+  source_type: string;
+  similarity: number;
+}
+
+/**
+ * Generate embedding for a text query using OpenAI
+ */
+async function generateEmbedding(text: string): Promise<number[]> {
+  const apiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!apiKey) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  const response = await fetch('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'text-embedding-ada-002',
+      input: text,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`OpenAI Embedding API error: ${error.error?.message || 'Unknown error'}`);
+  }
+
+  const data = await response.json();
+  return data.data[0].embedding;
+}
+
+/**
+ * Search for relevant context chunks using vector similarity
+ */
+async function retrieveContext(
+  supabaseClient: any,
+  workspaceId: string,
+  userQuery: string,
+  topK: number = 5
+): Promise<ContextChunk[]> {
+  console.log('📚 [CONTEXT] Generating embedding for query...');
+  const queryEmbedding = await generateEmbedding(userQuery);
+
+  console.log('📚 [CONTEXT] Searching for relevant chunks...');
+  const { data, error } = await supabaseClient.rpc('search_embeddings', {
+    query_embedding: queryEmbedding,
+    workspace_uuid: workspaceId,
+    match_threshold: 0.7, // Minimum similarity score
+    match_count: topK,
+    filter_source_type: 'company_os', // Only search CompanyOS for now
+    filter_assistant_id: null,
+  });
+
+  if (error) {
+    console.error('❌ [CONTEXT] Error searching embeddings:', error);
+    return [];
+  }
+
+  console.log(`✓ [CONTEXT] Found ${data?.length || 0} relevant chunks`);
+  return data || [];
+}
+
+/**
+ * Build enhanced system prompt with context
+ */
+function buildContextualPrompt(
+  baseSystemPrompt: string,
+  assistantName: string,
+  assistantRole: string,
+  contextChunks: ContextChunk[]
+): string {
+  if (!contextChunks || contextChunks.length === 0) {
+    return baseSystemPrompt;
+  }
+
+  const contextSection = contextChunks
+    .map((chunk, idx) => {
+      const sourceInfo = chunk.metadata?.source || 'Company Knowledge';
+      const page = chunk.metadata?.page ? ` (p.${chunk.metadata.page})` : '';
+      return `### Context ${idx + 1}: ${sourceInfo}${page}
+${chunk.content}`;
+    })
+    .join('\n\n');
+
+  return `# YOU ARE: ${assistantName}
+
+${baseSystemPrompt}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## COMPANY CONTEXT (CRITICAL - USE THIS INFORMATION)
+
+You have access to the following relevant company knowledge. Reference this
+information in your response when appropriate. Be specific and cite your sources
+naturally (e.g., "According to our [source]...").
+
+${contextSection}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Now respond to the user's question using the context above where relevant.`;
+}
+
+async function callOpenAI(assistant: any, userMessage: string, systemPrompt: string): Promise<string> {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
   if (!apiKey) {
     throw new Error('OpenAI API key not configured');
@@ -28,7 +137,7 @@ async function callOpenAI(assistant: any, userMessage: string): Promise<string> 
     body: JSON.stringify({
       model: assistant.model_name,
       messages: [
-        { role: 'system', content: assistant.system_prompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage },
       ],
       temperature: assistant.temperature,
@@ -45,7 +154,7 @@ async function callOpenAI(assistant: any, userMessage: string): Promise<string> 
   return data.choices[0].message.content;
 }
 
-async function callAnthropic(assistant: any, userMessage: string): Promise<string> {
+async function callAnthropic(assistant: any, userMessage: string, systemPrompt: string): Promise<string> {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) {
     throw new Error('Anthropic API key not configured');
@@ -60,7 +169,7 @@ async function callAnthropic(assistant: any, userMessage: string): Promise<strin
     },
     body: JSON.stringify({
       model: assistant.model_name,
-      system: assistant.system_prompt,
+      system: systemPrompt,
       messages: [
         { role: 'user', content: userMessage },
       ],
@@ -78,7 +187,7 @@ async function callAnthropic(assistant: any, userMessage: string): Promise<strin
   return data.content[0].text;
 }
 
-async function callGoogle(assistant: any, userMessage: string): Promise<string> {
+async function callGoogle(assistant: any, userMessage: string, systemPrompt: string): Promise<string> {
   const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
   if (!apiKey) {
     throw new Error('Google AI API key not configured');
@@ -95,7 +204,7 @@ async function callGoogle(assistant: any, userMessage: string): Promise<string> 
         contents: [
           {
             parts: [
-              { text: assistant.system_prompt + '\n\n' + userMessage },
+              { text: systemPrompt + '\n\n' + userMessage },
             ],
           },
         ],
@@ -165,16 +274,32 @@ serve(async (req) => {
 
     console.log('✓ [AI-RESPOND] Assistant found:', assistant.name, 'Provider:', assistant.model_provider);
 
-    // Call the appropriate AI provider
-    console.log('🔄 [AI-RESPOND] Calling', assistant.model_provider, 'API...');
+    // Retrieve relevant context from CompanyOS
+    const contextChunks = await retrieveContext(
+      supabaseClient,
+      assistant.workspace_id,
+      userMessage,
+      5 // Top 5 most relevant chunks
+    );
+
+    // Build contextual system prompt
+    const systemPrompt = buildContextualPrompt(
+      assistant.system_prompt,
+      assistant.name,
+      assistant.role,
+      contextChunks
+    );
+
+    // Call the appropriate AI provider with contextual prompt
+    console.log('🔄 [AI-RESPOND] Calling', assistant.model_provider, 'API with context...');
     let aiResponse: string;
 
     if (assistant.model_provider === 'openai') {
-      aiResponse = await callOpenAI(assistant, userMessage);
+      aiResponse = await callOpenAI(assistant, userMessage, systemPrompt);
     } else if (assistant.model_provider === 'anthropic') {
-      aiResponse = await callAnthropic(assistant, userMessage);
+      aiResponse = await callAnthropic(assistant, userMessage, systemPrompt);
     } else if (assistant.model_provider === 'google') {
-      aiResponse = await callGoogle(assistant, userMessage);
+      aiResponse = await callGoogle(assistant, userMessage, systemPrompt);
     } else {
       throw new Error(`Unsupported AI provider: ${assistant.model_provider}`);
     }
