@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
+import { callOpenAI, callAnthropic, callGoogle } from '@/lib/ai-providers';
 
 // Force this route to use Node.js runtime
 export const runtime = 'nodejs';
@@ -72,76 +74,78 @@ export async function POST(request: Request) {
       author: author,
     };
 
-    // Trigger AI responses for mentioned assistants
-    const aiTriggerResults = [];
+    // Trigger AI responses for mentioned assistants (async, non-blocking)
     if (mentions && mentions.length > 0) {
       console.log('🔔 Triggering AI responses for', mentions.length, 'assistant(s):', mentions);
 
-      // Get the base URL for server-to-server calls
-      const baseUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000');
+      // Process AI responses asynchronously (don't block the user message response)
+      const adminSupabase = createAdminClient();
 
-      console.log('Using baseUrl:', baseUrl);
-
-      // Trigger AI responses and collect results
-      for (const assistantId of mentions) {
+      mentions.forEach(async (assistantId: string) => {
         try {
-          console.log('  → Triggering AI response for assistant:', assistantId);
-          const aiUrl = `${baseUrl}/api/ai/respond`;
-          console.log('  → Calling URL:', aiUrl);
+          console.log('  → Processing AI response for assistant:', assistantId);
 
-          const response = await fetch(aiUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              messageId: message.id,
-              assistantId: assistantId,
-              channelId: channelId,
-              userMessage: content,
-            }),
-          });
+          // Fetch assistant details
+          const { data: assistant, error: assistantError } = await (adminSupabase
+            .from('assistants') as any)
+            .select('*')
+            .eq('id', assistantId)
+            .single();
 
-          console.log('  → Response status:', response.status, response.statusText);
-
-          // Get response text first to handle both JSON and HTML
-          const responseText = await response.text();
-          console.log('  → Response text preview:', responseText.substring(0, 200));
-
-          if (!response.ok) {
-            let errorData;
-            try {
-              errorData = JSON.parse(responseText);
-            } catch {
-              errorData = { error: 'Non-JSON response', responsePreview: responseText.substring(0, 200) };
-            }
-            console.error(`  ✗ AI response failed for ${assistantId}:`, errorData);
-            aiTriggerResults.push({ assistantId, success: false, error: errorData });
-          } else {
-            let data;
-            try {
-              data = JSON.parse(responseText);
-            } catch {
-              console.error('  ✗ Success response but invalid JSON:', responseText.substring(0, 200));
-              aiTriggerResults.push({ assistantId, success: false, error: 'Invalid JSON response' });
-              continue;
-            }
-            console.log('  ✓ AI response triggered successfully for', assistantId);
-            aiTriggerResults.push({ assistantId, success: true });
+          if (assistantError || !assistant) {
+            console.error('  ✗ Assistant not found:', assistantError);
+            return;
           }
+
+          console.log('  ✓ Assistant found:', assistant.name, 'Provider:', assistant.model_provider);
+
+          // Call the appropriate AI provider
+          console.log('  🔄 Calling', assistant.model_provider, 'API...');
+          let aiResponse: string;
+
+          if (assistant.model_provider === 'openai') {
+            aiResponse = await callOpenAI(assistant, content);
+          } else if (assistant.model_provider === 'anthropic') {
+            aiResponse = await callAnthropic(assistant, content);
+          } else if (assistant.model_provider === 'google') {
+            aiResponse = await callGoogle(assistant, content);
+          } else {
+            console.error('  ✗ Unsupported AI provider:', assistant.model_provider);
+            return;
+          }
+
+          console.log('  ✓ AI response generated:', aiResponse.substring(0, 100) + '...');
+
+          // Insert AI response as a message
+          const { data: responseMessage, error: messageError } = await (adminSupabase
+            .from('messages') as any)
+            .insert({
+              channel_id: channelId,
+              author_id: assistantId,
+              author_type: 'assistant',
+              content: aiResponse,
+              mentions: [],
+              counts_toward_limit: false,
+            })
+            .select()
+            .single();
+
+          if (messageError) {
+            console.error('  ✗ Failed to insert AI response:', messageError);
+            return;
+          }
+
+          console.log('  ✅ AI response saved:', responseMessage.id);
         } catch (error: any) {
-          console.error(`  ✗ Failed to trigger AI response for ${assistantId}:`, error);
-          aiTriggerResults.push({ assistantId, success: false, error: error.message });
+          console.error(`  ✗ Error generating AI response for ${assistantId}:`, error.message);
         }
-      }
+      });
     }
 
     return NextResponse.json({
       success: true,
       message: completeMessage,
-      aiTriggerResults: aiTriggerResults.length > 0 ? aiTriggerResults : undefined,
+      aiResponsesTriggered: mentions && mentions.length > 0 ? mentions.length : 0,
     });
   } catch (error: any) {
     console.error('Error sending message:', error);
