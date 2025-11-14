@@ -34,8 +34,10 @@ export function PageClient({
   useEffect(() => {
     console.log('Setting up Realtime subscription for channel:', currentChannel.id);
 
+    // Use a unique channel name to avoid conflicts between tabs
+    const channelName = `messages:${currentChannel.id}:${Date.now()}`;
     const channel = supabase
-      .channel('messages')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
