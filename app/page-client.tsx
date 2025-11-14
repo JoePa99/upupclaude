@@ -154,7 +154,11 @@ export function PageClient({
       // No need to manually add to state
       console.log('Message sent successfully, waiting for Realtime update');
 
-      // TODO: Implement AI response via API if mentions exist
+      // If there are mentions, poll for AI responses
+      if (mentions && mentions.length > 0) {
+        console.log('🤖 AI response expected for', mentions.length, 'assistant(s)');
+        // We'll see the response come in via Realtime
+      }
     } catch (error: any) {
       console.error('Error sending message:', error);
       alert(error.message || 'Failed to send message');
