@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
     // Trigger AI responses for mentioned assistants (async, don't wait)
     if (mentions && mentions.length > 0) {
-      console.log('Triggering AI responses for mentions:', mentions);
+      console.log('🔔 Triggering AI responses for', mentions.length, 'assistant(s):', mentions);
 
       // Fire and forget - trigger AI responses in the background
       const baseUrl = process.env.VERCEL_URL
@@ -79,7 +79,8 @@ export async function POST(request: Request) {
 
       mentions.forEach(async (assistantId: string) => {
         try {
-          await fetch(`${baseUrl}/api/ai/respond`, {
+          console.log('  → Triggering AI response for assistant:', assistantId);
+          const response = await fetch(`${baseUrl}/api/ai/respond`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -91,8 +92,15 @@ export async function POST(request: Request) {
               userMessage: content,
             }),
           });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error(`  ✗ AI response failed for ${assistantId}:`, errorData);
+          } else {
+            console.log('  ✓ AI response triggered successfully for', assistantId);
+          }
         } catch (error) {
-          console.error(`Failed to trigger AI response for ${assistantId}:`, error);
+          console.error(`  ✗ Failed to trigger AI response for ${assistantId}:`, error);
         }
       });
     }

@@ -3,23 +3,12 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
   const adminSupabase = createAdminClient();
-
-  // Get authenticated user
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
 
   try {
     const { messageId, assistantId, channelId, userMessage } = await request.json();
 
-    console.log('AI response request:', { messageId, assistantId, channelId });
+    console.log('🤖 AI response request:', { messageId, assistantId, channelId });
 
     // Fetch assistant details
     const { data: assistant, error: assistantError } = await (adminSupabase
@@ -29,13 +18,14 @@ export async function POST(request: Request) {
       .single();
 
     if (assistantError || !assistant) {
-      console.error('Assistant not found:', assistantError);
+      console.error('❌ Assistant not found:', assistantError);
       return NextResponse.json({ error: 'Assistant not found' }, { status: 404 });
     }
 
-    console.log('Assistant:', assistant);
+    console.log('✓ Assistant found:', assistant.name, 'Provider:', assistant.model_provider);
 
     // Call the appropriate AI provider
+    console.log('🔄 Calling', assistant.model_provider, 'API...');
     let aiResponse: string;
 
     if (assistant.model_provider === 'openai') {
@@ -48,7 +38,7 @@ export async function POST(request: Request) {
       throw new Error('Unsupported AI provider');
     }
 
-    console.log('AI response generated:', aiResponse.substring(0, 100) + '...');
+    console.log('✓ AI response generated:', aiResponse.substring(0, 100) + '...');
 
     // Insert AI response as a message
     const { data: responseMessage, error: messageError } = await (adminSupabase
@@ -65,18 +55,18 @@ export async function POST(request: Request) {
       .single();
 
     if (messageError) {
-      console.error('Failed to insert AI response:', messageError);
+      console.error('❌ Failed to insert AI response:', messageError);
       throw messageError;
     }
 
-    console.log('AI response saved:', responseMessage.id);
+    console.log('✅ AI response saved to database:', responseMessage.id);
 
     return NextResponse.json({
       success: true,
       message: responseMessage,
     });
   } catch (error: any) {
-    console.error('Error generating AI response:', error);
+    console.error('❌ Error generating AI response:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to generate AI response', details: error },
       { status: 500 }
