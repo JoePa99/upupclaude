@@ -1,7 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
-import { callOpenAI, callAnthropic, callGoogle } from '@/lib/ai-providers';
 
 // Force this route to use Node.js runtime
 export const runtime = 'nodejs';
@@ -74,71 +72,28 @@ export async function POST(request: Request) {
       author: author,
     };
 
-    // Trigger AI responses for mentioned assistants - WAIT for them to complete
+    // Trigger AI responses via Supabase Edge Function (fire-and-forget)
     if (mentions && mentions.length > 0) {
-      console.log('🔔 Processing AI responses for', mentions.length, 'assistant(s):', mentions);
-      const adminSupabase = createAdminClient();
+      console.log('🔔 Triggering', mentions.length, 'AI response(s) via Edge Function');
 
-      // Process all AI responses sequentially (await each one)
-      for (const assistantId of mentions) {
-        try {
-          console.log('  → Processing AI response for assistant:', assistantId);
-
-          // Fetch assistant details
-          const { data: assistant, error: assistantError } = await (adminSupabase
-            .from('assistants') as any)
-            .select('*')
-            .eq('id', assistantId)
-            .single();
-
-          if (assistantError || !assistant) {
-            console.error('  ✗ Assistant not found:', assistantError);
-            continue;
-          }
-
-          console.log('  ✓ Assistant found:', assistant.name, 'Provider:', assistant.model_provider);
-
-          // Call the appropriate AI provider
-          console.log('  🔄 Calling', assistant.model_provider, 'API...');
-          let aiResponse: string;
-
-          if (assistant.model_provider === 'openai') {
-            aiResponse = await callOpenAI(assistant, content);
-          } else if (assistant.model_provider === 'anthropic') {
-            aiResponse = await callAnthropic(assistant, content);
-          } else if (assistant.model_provider === 'google') {
-            aiResponse = await callGoogle(assistant, content);
+      // Call Edge Function for each mentioned assistant (don't await - let it run in background)
+      mentions.forEach((assistantId: string) => {
+        supabase.functions.invoke('ai-respond', {
+          body: {
+            assistantId,
+            channelId,
+            userMessage: content,
+          },
+        }).then(result => {
+          if (result.error) {
+            console.error('  ✗ Edge Function error for', assistantId, ':', result.error);
           } else {
-            console.error('  ✗ Unsupported AI provider:', assistant.model_provider);
-            continue;
+            console.log('  ✓ Edge Function triggered for', assistantId);
           }
-
-          console.log('  ✓ AI response generated:', aiResponse.substring(0, 100) + '...');
-
-          // Insert AI response as a message
-          const { data: responseMessage, error: messageError } = await (adminSupabase
-            .from('messages') as any)
-            .insert({
-              channel_id: channelId,
-              author_id: assistantId,
-              author_type: 'assistant',
-              content: aiResponse,
-              mentions: [],
-              counts_toward_limit: false,
-            })
-            .select()
-            .single();
-
-          if (messageError) {
-            console.error('  ✗ Failed to insert AI response:', messageError);
-            continue;
-          }
-
-          console.log('  ✅ AI response saved:', responseMessage.id);
-        } catch (error: any) {
-          console.error(`  ✗ Error generating AI response for ${assistantId}:`, error.message);
-        }
-      }
+        }).catch(err => {
+          console.error('  ✗ Failed to invoke Edge Function:', err);
+        });
+      });
     }
 
     return NextResponse.json({
