@@ -154,10 +154,18 @@ export function PageClient({
       // No need to manually add to state
       console.log('Message sent successfully, waiting for Realtime update');
 
-      // If there are mentions, poll for AI responses
-      if (mentions && mentions.length > 0) {
+      // Check AI trigger results
+      if (data.aiTriggerResults && data.aiTriggerResults.length > 0) {
+        console.log('🤖 AI Trigger Results:', data.aiTriggerResults);
+        data.aiTriggerResults.forEach((result: any) => {
+          if (result.success) {
+            console.log('  ✓ AI response triggered for assistant:', result.assistantId);
+          } else {
+            console.error('  ✗ AI response failed for assistant:', result.assistantId, result.error);
+          }
+        });
+      } else if (mentions && mentions.length > 0) {
         console.log('🤖 AI response expected for', mentions.length, 'assistant(s)');
-        // We'll see the response come in via Realtime
       }
     } catch (error: any) {
       console.error('Error sending message:', error);

@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
+// Force this route to use Node.js runtime
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   const supabase = await createClient();
 
@@ -68,19 +72,26 @@ export async function POST(request: Request) {
       author: author,
     };
 
-    // Trigger AI responses for mentioned assistants (async, don't wait)
+    // Trigger AI responses for mentioned assistants
+    const aiTriggerResults = [];
     if (mentions && mentions.length > 0) {
       console.log('🔔 Triggering AI responses for', mentions.length, 'assistant(s):', mentions);
 
-      // Fire and forget - trigger AI responses in the background
+      // Get the base URL for server-to-server calls
       const baseUrl = process.env.VERCEL_URL
         ? `https://${process.env.VERCEL_URL}`
-        : 'http://localhost:3000';
+        : (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000');
 
-      mentions.forEach(async (assistantId: string) => {
+      console.log('Using baseUrl:', baseUrl);
+
+      // Trigger AI responses and collect results
+      for (const assistantId of mentions) {
         try {
           console.log('  → Triggering AI response for assistant:', assistantId);
-          const response = await fetch(`${baseUrl}/api/ai/respond`, {
+          const aiUrl = `${baseUrl}/api/ai/respond`;
+          console.log('  → Calling URL:', aiUrl);
+
+          const response = await fetch(aiUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -96,18 +107,23 @@ export async function POST(request: Request) {
           if (!response.ok) {
             const errorData = await response.json();
             console.error(`  ✗ AI response failed for ${assistantId}:`, errorData);
+            aiTriggerResults.push({ assistantId, success: false, error: errorData });
           } else {
+            const data = await response.json();
             console.log('  ✓ AI response triggered successfully for', assistantId);
+            aiTriggerResults.push({ assistantId, success: true });
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error(`  ✗ Failed to trigger AI response for ${assistantId}:`, error);
+          aiTriggerResults.push({ assistantId, success: false, error: error.message });
         }
-      });
+      }
     }
 
     return NextResponse.json({
       success: true,
       message: completeMessage,
+      aiTriggerResults: aiTriggerResults.length > 0 ? aiTriggerResults : undefined,
     });
   } catch (error: any) {
     console.error('Error sending message:', error);
