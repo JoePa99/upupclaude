@@ -1,19 +1,53 @@
 'use client';
 
-import { useState, KeyboardEvent } from 'react';
+import { useState, KeyboardEvent, useRef, useEffect } from 'react';
 import { Assistant } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface ChatInputProps {
   assistants: Assistant[];
+  channelName: string;
   onSendMessage: (content: string, mentions: string[]) => void;
 }
 
-export function ChatInput({ assistants, onSendMessage }: ChatInputProps) {
+export function ChatInput({ assistants, channelName, onSendMessage }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [showMentions, setShowMentions] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Reset selected index when dropdown opens
+  useEffect(() => {
+    if (showMentions) {
+      setSelectedIndex(0);
+    }
+  }, [showMentions]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle keyboard navigation in mention dropdown
+    if (showMentions) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev + 1) % assistants.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev - 1 + assistants.length) % assistants.length);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        insertMention(assistants[selectedIndex].name);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowMentions(false);
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -25,43 +59,47 @@ export function ChatInput({ assistants, onSendMessage }: ChatInputProps) {
       setMessage((prev) => prev + '@');
       setShowMentions(true);
     }
-
-    // Close mention dropdown on Escape
-    if (e.key === 'Escape') {
-      setShowMentions(false);
-    }
   };
 
   const handleSend = () => {
-    if (!message.trim()) return;
+    console.log('=== ChatInput handleSend called ===');
+    console.log('Message:', message);
+    console.log('Message trimmed:', message.trim());
+    console.log('Available assistants:', assistants);
 
-    console.log('Sending message:', message);
+    if (!message.trim()) {
+      console.log('Message is empty, returning early');
+      return;
+    }
 
     // Extract mentions - match @word pattern
     const mentionRegex = /@([a-zA-Z0-9_]+)/g;
     const mentions: string[] = [];
     let match;
 
+    console.log('Starting mention detection...');
+    console.log('Testing regex on message:', message);
+
     while ((match = mentionRegex.exec(message)) !== null) {
       const mentionText = match[1].toLowerCase(); // e.g., "sales_assistant"
-      console.log('Found mention text:', mentionText);
+      console.log('✓ Found mention text:', mentionText);
 
       // Try to match against assistant names (converted to slug format)
       const assistant = assistants.find((a) => {
         const assistantSlug = a.name.toLowerCase().replace(/\s+/g, '_');
-        console.log('Comparing', mentionText, 'with', assistantSlug);
+        console.log('  Comparing', mentionText, 'with', assistantSlug, 'from assistant:', a.name);
         return assistantSlug === mentionText || a.name.toLowerCase().includes(mentionText);
       });
 
       if (assistant) {
-        console.log('Matched assistant:', assistant.name, assistant.id);
+        console.log('✓ Matched assistant:', assistant.name, 'ID:', assistant.id);
         mentions.push(assistant.id);
       } else {
-        console.log('No assistant found for mention:', mentionText);
+        console.log('✗ No assistant found for mention:', mentionText);
       }
     }
 
-    console.log('Final mentions array:', mentions);
+    console.log('=== Final mentions array:', mentions, '===');
 
     onSendMessage(message, mentions);
     setMessage('');
@@ -93,11 +131,16 @@ export function ChatInput({ assistants, onSendMessage }: ChatInputProps) {
               </p>
             </div>
             <div className="max-h-48 overflow-y-auto">
-              {assistants.map((assistant) => (
+              {assistants.map((assistant, index) => (
                 <button
                   key={assistant.id}
                   onClick={() => insertMention(assistant.name)}
-                  className="w-full flex items-center gap-3 px-3 py-2 hover:bg-background-secondary transition-colors text-left"
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2 transition-colors text-left",
+                    index === selectedIndex
+                      ? "bg-accent/20 border-l-2 border-accent"
+                      : "hover:bg-background-secondary"
+                  )}
                 >
                   <div className="w-6 h-6 rounded bg-ai/20 border border-ai/30 flex items-center justify-center text-ai text-xs">
                     ◆
@@ -119,10 +162,11 @@ export function ChatInput({ assistants, onSendMessage }: ChatInputProps) {
         {/* Input area */}
         <div className="relative">
           <textarea
+            ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Message #product-launch (use @assistant_name to mention)"
+            placeholder={`Message #${channelName} (use @assistant_name to mention)`}
             className={cn(
               'w-full bg-background border border-border rounded-lg px-4 py-3',
               'text-foreground placeholder:text-foreground-tertiary',
