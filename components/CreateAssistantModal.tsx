@@ -12,18 +12,18 @@ interface CreateAssistantModalProps {
 
 const MODEL_OPTIONS = {
   openai: [
-    { value: 'gpt-5.1-thinking', label: 'GPT-5.1 Thinking (Most powerful)' },
-    { value: 'gpt-5.1-instant', label: 'GPT-5.1 Instant (Workhorse)' },
-    { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano (Fast & efficient)' },
+    { value: 'gpt-4o', label: 'GPT-4o (Most powerful, multimodal)' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Fast & efficient)' },
+    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo (Workhorse)' },
   ],
   anthropic: [
-    { value: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5 (Most powerful)' },
-    { value: 'claude-haiku-4.5', label: 'Claude Haiku 4.5 (Fast & efficient)' },
+    { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet (Most powerful)' },
+    { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (Fast & efficient)' },
   ],
   google: [
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Most powerful)' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Workhorse)' },
-    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (Fast & efficient)' },
+    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental, Most powerful)' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Production, Powerful)' },
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Fast & efficient)' },
   ],
 };
 
@@ -32,7 +32,7 @@ export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssis
   const [role, setRole] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [modelProvider, setModelProvider] = useState<'openai' | 'anthropic' | 'google'>('openai');
-  const [modelName, setModelName] = useState('gpt-5.1-instant');
+  const [modelName, setModelName] = useState('gpt-4o');
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(4000);
   const [creating, setCreating] = useState(false);
