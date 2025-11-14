@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -17,8 +18,11 @@ export async function POST(request: Request) {
   try {
     const { workspaceName, userName, seats = 5 } = await request.json();
 
+    // Use admin client to bypass RLS for setup operations
+    const adminSupabase = createAdminClient();
+
     // 1. Create workspace
-    const { data: workspace, error: workspaceError } = await supabase
+    const { data: workspace, error: workspaceError } = await adminSupabase
       .from('workspaces')
       .insert({
         name: workspaceName,
