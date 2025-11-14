@@ -1,113 +1,47 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { PageClient } from './page-client';
+import { mockWorkspace, mockChannels, mockMessages } from '@/lib/mock-data';
 
-import { useState } from 'react';
-import { Sidebar } from '@/components/Sidebar';
-import { ChannelHeader } from '@/components/ChannelHeader';
-import { Message } from '@/components/Message';
-import { ChatInput } from '@/components/ChatInput';
-import {
-  mockWorkspace,
-  mockChannels,
-  mockMessages,
-} from '@/lib/mock-data';
-import { Channel, Message as MessageType } from '@/types';
+export default async function Home() {
+  const supabase = await createClient();
 
-export default function Home() {
-  const [currentChannel, setCurrentChannel] = useState<Channel>(
-    mockChannels[0]
-  );
-  const [messages, setMessages] = useState<MessageType[]>(mockMessages);
+  // Check if user is authenticated
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const channelMessages = messages.filter(
-    (m) => m.channelId === currentChannel.id
-  );
+  // If not authenticated, redirect to signin
+  if (!user) {
+    redirect('/auth/signin');
+  }
 
-  const handleSendMessage = (content: string, mentions: string[]) => {
-    const newMessage: MessageType = {
-      id: `m${messages.length + 1}`,
-      channelId: currentChannel.id,
-      authorId: 'u1',
-      authorType: 'human',
-      author: mockWorkspace.users[0],
-      content,
-      mentions,
-      timestamp: new Date(),
-      countsTowardLimit: mentions.length > 0,
-    };
+  // For now, use mock data until we have a populated database
+  // In production, fetch real data from Supabase
 
-    setMessages([...messages, newMessage]);
+  // Check if user has a workspace profile
+  const { data: userProfile } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', user.id)
+    .single();
 
-    // Simulate AI response if there are mentions
-    if (mentions.length > 0) {
-      setTimeout(() => {
-        const assistant = mockWorkspace.assistants.find((a) =>
-          mentions.includes(a.id)
-        );
-        if (assistant) {
-          const aiResponse: MessageType = {
-            id: `m${messages.length + 2}`,
-            channelId: currentChannel.id,
-            authorId: assistant.id,
-            authorType: 'assistant',
-            author: assistant,
-            content:
-              "I'm analyzing your question using the CompanyOS knowledge and relevant playbooks. In a real implementation, this would be a context-rich response based on retrieved knowledge chunks.\n\n**Analysis**: [Context-based insights would appear here]\n\n**Recommendations**: [Actionable next steps]\n\nWould you like me to dive deeper into any specific aspect?",
-            mentions: [],
-            timestamp: new Date(Date.now() + 2000),
-            countsTowardLimit: false,
-          };
+  // If no profile, redirect to setup
+  if (!userProfile) {
+    redirect('/setup');
+  }
 
-          setMessages((prev) => [...prev, aiResponse]);
-        }
-      }, 2000);
-    }
-  };
+  // TODO: Fetch real data from Supabase
+  // const workspace = await getWorkspace(userProfile.workspace_id);
+  // const channels = await getWorkspaceChannels(userProfile.workspace_id);
+  // const messages = await getChannelMessages(channels[0].id);
 
+  // For now, use mock data
   return (
-    <div className="flex h-screen overflow-hidden relative">
-      {/* Sidebar */}
-      <Sidebar
-        workspace={mockWorkspace}
-        currentChannel={currentChannel}
-        onChannelSelect={setCurrentChannel}
-      />
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col relative z-10">
-        {/* Channel header */}
-        <ChannelHeader channel={currentChannel} />
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-5xl mx-auto">
-            {channelMessages.length === 0 ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="text-6xl mb-4 opacity-20">💬</div>
-                  <h3 className="text-xl font-serif font-semibold text-foreground mb-2">
-                    No messages yet
-                  </h3>
-                  <p className="text-foreground-secondary">
-                    Start a conversation by mentioning an AI assistant
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="py-4">
-                {channelMessages.map((message, index) => (
-                  <Message key={message.id} message={message} index={index} />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Chat input */}
-        <ChatInput
-          assistants={currentChannel.assistants}
-          onSendMessage={handleSendMessage}
-        />
-      </div>
-    </div>
+    <PageClient
+      initialWorkspace={mockWorkspace}
+      initialChannel={mockChannels[0]}
+      initialMessages={mockMessages}
+    />
   );
 }
