@@ -1,8 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
 
   // Get authenticated user
   const {
@@ -59,8 +61,8 @@ export async function POST(request: Request) {
 
     console.log('Creating assistant with data:', assistantData);
 
-    // Create assistant
-    const { data: assistant, error: assistantError } = await (supabase
+    // Create assistant using admin client to bypass RLS
+    const { data: assistant, error: assistantError } = await (adminSupabase
       .from('assistants') as any)
       .insert(assistantData)
       .select()

@@ -238,11 +238,14 @@ export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssis
                       type="number"
                       value={maxTokens}
                       onChange={(e) => setMaxTokens(parseInt(e.target.value))}
-                      min="100"
+                      min="500"
                       max="10000"
                       step="500"
                       className="w-full bg-background-secondary border border-border rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-accent transition-colors"
                     />
+                    <p className="text-xs text-foreground-tertiary mt-1">
+                      Valid values: 500, 1000, 1500, 2000... up to 10,000
+                    </p>
                   </div>
                 </div>
 
