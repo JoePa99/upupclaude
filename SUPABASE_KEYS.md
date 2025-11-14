@@ -82,6 +82,32 @@ After adding environment variables:
 
 Your app will now connect to Supabase!
 
+## 5. Configure Email Settings (Important!)
+
+By default, email confirmation links will redirect to `localhost`. Fix this:
+
+1. In Supabase, go to **Settings → Authentication**
+2. Scroll to **Site URL**
+3. Change from `http://localhost:3000` to your Vercel URL:
+   ```
+   https://your-project.vercel.app
+   ```
+4. Scroll to **Redirect URLs** and add:
+   ```
+   https://your-project.vercel.app/**
+   https://*.vercel.app/**
+   http://localhost:3000/**
+   ```
+5. Click **Save**
+
+Now email confirmation links will work in production!
+
+**Optional: Disable email confirmation for development:**
+- Go to **Authentication → Providers → Email**
+- Toggle OFF "Confirm email"
+- Users can sign up immediately without email verification
+- ⚠️ Remember to turn this back ON for production!
+
 ---
 
 ## Visual Guide
