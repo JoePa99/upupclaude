@@ -22,13 +22,39 @@ export function PageClient({
   initialMessages,
   currentUserId,
 }: PageClientProps) {
+  const [workspace, setWorkspace] = useState<Workspace>(initialWorkspace);
   const [currentChannel, setCurrentChannel] = useState<Channel>(initialChannel);
   const [messages, setMessages] = useState<MessageType[]>(initialMessages);
   const [sending, setSending] = useState(false);
   const supabase = createClient();
 
   // Get current user from workspace
-  const currentUser = initialWorkspace.users.find(u => u.id === currentUserId) || initialWorkspace.users[0];
+  const currentUser = workspace.users.find(u => u.id === currentUserId) || workspace.users[0];
+
+  // Handle assistant creation
+  const handleAssistantCreated = async () => {
+    // Refresh assistants list
+    const { data: assistants } = await (supabase
+      .from('assistants') as any)
+      .select('*')
+      .eq('workspace_id', workspace.id);
+
+    if (assistants) {
+      const { transformAssistants } = await import('@/lib/transformers');
+      const transformedAssistants = transformAssistants(assistants);
+
+      setWorkspace({
+        ...workspace,
+        assistants: transformedAssistants,
+      });
+
+      // Also update current channel's assistants
+      setCurrentChannel({
+        ...currentChannel,
+        assistants: transformedAssistants,
+      });
+    }
+  };
 
   // Set up Realtime subscription for new messages
   useEffect(() => {
@@ -140,10 +166,11 @@ export function PageClient({
   return (
     <div className="flex h-screen overflow-hidden relative">
       <Sidebar
-        workspace={initialWorkspace}
+        workspace={workspace}
         currentChannel={currentChannel}
         currentUser={currentUser}
         onChannelSelect={setCurrentChannel}
+        onAssistantCreated={handleAssistantCreated}
       />
 
       <div className="flex-1 flex flex-col relative z-10">

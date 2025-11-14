@@ -1,14 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import { Channel, Assistant, Workspace, User } from '@/types';
 import { cn, getInitials } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { CreateAssistantModal } from './CreateAssistantModal';
 
 interface SidebarProps {
   workspace: Workspace;
   currentChannel: Channel;
   currentUser: User;
   onChannelSelect: (channel: Channel) => void;
+  onAssistantCreated: () => void;
 }
 
 export function Sidebar({
@@ -16,7 +19,9 @@ export function Sidebar({
   currentChannel,
   currentUser,
   onChannelSelect,
+  onAssistantCreated,
 }: SidebarProps) {
+  const [showCreateAssistant, setShowCreateAssistant] = useState(false);
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -81,6 +86,12 @@ export function Sidebar({
             <h2 className="text-xs font-semibold text-foreground-tertiary uppercase tracking-wide">
               AI Assistants
             </h2>
+            <button
+              onClick={() => setShowCreateAssistant(true)}
+              className="text-accent hover:text-accent-hover transition-colors text-sm"
+            >
+              +
+            </button>
           </div>
 
           <div className="space-y-1">
@@ -125,6 +136,13 @@ export function Sidebar({
           </div>
         </div>
       </div>
+
+      {/* Create Assistant Modal */}
+      <CreateAssistantModal
+        isOpen={showCreateAssistant}
+        onClose={() => setShowCreateAssistant(false)}
+        onSuccess={onAssistantCreated}
+      />
     </motion.div>
   );
 }
