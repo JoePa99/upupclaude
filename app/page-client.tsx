@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { transformMessage } from '@/lib/transformers';
 import { Sidebar } from '@/components/Sidebar';
 import { ChannelHeader } from '@/components/ChannelHeader';
 import { Message } from '@/components/Message';
@@ -11,38 +13,100 @@ interface PageClientProps {
   initialWorkspace: Workspace;
   initialChannel: Channel;
   initialMessages: MessageType[];
+  currentUserId: string;
 }
 
 export function PageClient({
   initialWorkspace,
   initialChannel,
   initialMessages,
+  currentUserId,
 }: PageClientProps) {
   const [currentChannel, setCurrentChannel] = useState<Channel>(initialChannel);
   const [messages, setMessages] = useState<MessageType[]>(initialMessages);
+  const [sending, setSending] = useState(false);
+  const supabase = createClient();
+
+  // Set up Realtime subscription for new messages
+  useEffect(() => {
+    const channel = supabase
+      .channel('messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `channel_id=eq.${currentChannel.id}`,
+        },
+        async (payload) => {
+          // Fetch the complete message with author info
+          const { data: newMessage } = await (supabase
+            .from('messages') as any)
+            .select(
+              `
+              *,
+              author:users!messages_author_id_fkey (
+                id,
+                name,
+                email,
+                avatar_url,
+                role
+              )
+            `
+            )
+            .eq('id', payload.new.id)
+            .single();
+
+          if (newMessage) {
+            setMessages((prev) => [...prev, transformMessage(newMessage)]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentChannel.id, supabase]);
 
   const channelMessages = messages.filter(
     (m) => m.channelId === currentChannel.id
   );
 
   const handleSendMessage = async (content: string, mentions: string[]) => {
-    // In production, this would call an API route
-    // For now, just add to local state
-    const newMessage: MessageType = {
-      id: `m${Date.now()}`,
-      channelId: currentChannel.id,
-      authorId: initialWorkspace.users[0].id,
-      authorType: 'human',
-      author: initialWorkspace.users[0],
-      content,
-      mentions,
-      timestamp: new Date(),
-      countsTowardLimit: mentions.length > 0,
-    };
+    if (sending) return;
 
-    setMessages([...messages, newMessage]);
+    setSending(true);
+    try {
+      const response = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          channelId: currentChannel.id,
+          content,
+          mentions,
+        }),
+      });
 
-    // TODO: Implement AI response via API
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send message');
+      }
+
+      // Message will be added via Realtime subscription
+      // No need to manually add to state
+
+      // TODO: Implement AI response via API if mentions exist
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      alert(error.message || 'Failed to send message');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
