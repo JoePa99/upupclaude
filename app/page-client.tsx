@@ -40,26 +40,28 @@ export function PageClient({
           filter: `channel_id=eq.${currentChannel.id}`,
         },
         async (payload) => {
-          // Fetch the complete message with author info
+          // Fetch the complete message
           const { data: newMessage } = await (supabase
             .from('messages') as any)
-            .select(
-              `
-              *,
-              author:users!messages_author_id_fkey (
-                id,
-                name,
-                email,
-                avatar_url,
-                role
-              )
-            `
-            )
+            .select('*')
             .eq('id', payload.new.id)
             .single();
 
           if (newMessage) {
-            setMessages((prev) => [...prev, transformMessage(newMessage)]);
+            // Fetch author info separately
+            const table = newMessage.author_type === 'human' ? 'users' : 'assistants';
+            const { data: author } = await (supabase
+              .from(table) as any)
+              .select('id, name, email, avatar_url, role')
+              .eq('id', newMessage.author_id)
+              .single();
+
+            const completeMessage = {
+              ...newMessage,
+              author: author || { id: newMessage.author_id, name: 'Unknown', email: '', role: 'member' },
+            };
+
+            setMessages((prev) => [...prev, transformMessage(completeMessage)]);
           }
         }
       )

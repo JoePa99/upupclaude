@@ -40,29 +40,35 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fetch messages with author information
+    // Fetch messages
     const { data: messages, error: messagesError } = await (supabase
       .from('messages') as any)
-      .select(
-        `
-        *,
-        author:users!messages_author_id_fkey (
-          id,
-          name,
-          email,
-          avatar_url,
-          role
-        )
-      `
-      )
+      .select('*')
       .eq('channel_id', channelId)
       .order('created_at', { ascending: true });
 
     if (messagesError) throw messagesError;
 
+    // Fetch author info for each message
+    const messagesWithAuthors = await Promise.all(
+      (messages || []).map(async (msg: any) => {
+        const table = msg.author_type === 'human' ? 'users' : 'assistants';
+        const { data: author } = await (supabase
+          .from(table) as any)
+          .select('id, name, email, avatar_url, role')
+          .eq('id', msg.author_id)
+          .single();
+
+        return {
+          ...msg,
+          author: author || { id: msg.author_id, name: 'Unknown', email: '', role: 'member' },
+        };
+      })
+    );
+
     return NextResponse.json({
       success: true,
-      messages: messages || [],
+      messages: messagesWithAuthors,
     });
   } catch (error: any) {
     console.error('Error fetching messages:', error);

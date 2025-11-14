@@ -50,24 +50,27 @@ export async function POST(request: Request) {
         mentions: mentions || [],
         counts_toward_limit: mentions && mentions.length > 0,
       })
-      .select(
-        `
-        *,
-        author:users!messages_author_id_fkey (
-          id,
-          name,
-          email,
-          avatar_url
-        )
-      `
-      )
+      .select()
       .single();
 
     if (messageError) throw messageError;
 
+    // Fetch author info separately (since author_id can reference users OR assistants)
+    const { data: author } = await (supabase
+      .from('users') as any)
+      .select('id, name, email, avatar_url, role')
+      .eq('id', user.id)
+      .single();
+
+    // Combine message with author info
+    const completeMessage = {
+      ...message,
+      author: author,
+    };
+
     return NextResponse.json({
       success: true,
-      message,
+      message: completeMessage,
     });
   } catch (error: any) {
     console.error('Error sending message:', error);

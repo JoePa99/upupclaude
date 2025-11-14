@@ -87,20 +87,26 @@ export default async function Home() {
   // Fetch messages for the first channel
   const { data: messages } = await (supabase
     .from('messages') as any)
-    .select(
-      `
-      *,
-      author:users!messages_author_id_fkey (
-        id,
-        name,
-        email,
-        avatar_url,
-        role
-      )
-    `
-    )
+    .select('*')
     .eq('channel_id', firstChannel.id)
     .order('created_at', { ascending: true });
+
+  // Fetch author info for each message
+  const messagesWithAuthors = await Promise.all(
+    (messages || []).map(async (msg: any) => {
+      const table = msg.author_type === 'human' ? 'users' : 'assistants';
+      const { data: author } = await (supabase
+        .from(table) as any)
+        .select('id, name, email, avatar_url, role')
+        .eq('id', msg.author_id)
+        .single();
+
+      return {
+        ...msg,
+        author: author || { id: msg.author_id, name: 'Unknown', email: '', role: 'member' },
+      };
+    })
+  );
 
   return (
     <PageClient
@@ -112,7 +118,7 @@ export default async function Home() {
         assistants: transformedAssistants,
       }}
       initialChannel={transformedChannels[0]}
-      initialMessages={transformMessages(messages || [])}
+      initialMessages={transformMessages(messagesWithAuthors || [])}
       currentUserId={user.id}
     />
   );
