@@ -27,8 +27,13 @@ export function PageClient({
   const [sending, setSending] = useState(false);
   const supabase = createClient();
 
+  // Get current user from workspace
+  const currentUser = initialWorkspace.users.find(u => u.id === currentUserId) || initialWorkspace.users[0];
+
   // Set up Realtime subscription for new messages
   useEffect(() => {
+    console.log('Setting up Realtime subscription for channel:', currentChannel.id);
+
     const channel = supabase
       .channel('messages')
       .on(
@@ -40,12 +45,16 @@ export function PageClient({
           filter: `channel_id=eq.${currentChannel.id}`,
         },
         async (payload) => {
+          console.log('Realtime message received:', payload);
+
           // Fetch the complete message
           const { data: newMessage } = await (supabase
             .from('messages') as any)
             .select('*')
             .eq('id', payload.new.id)
             .single();
+
+          console.log('Fetched complete message:', newMessage);
 
           if (newMessage) {
             // Fetch author info separately
@@ -56,18 +65,29 @@ export function PageClient({
               .eq('id', newMessage.author_id)
               .single();
 
+            console.log('Fetched author:', author);
+
             const completeMessage = {
               ...newMessage,
               author: author || { id: newMessage.author_id, name: 'Unknown', email: '', role: 'member' },
             };
 
-            setMessages((prev) => [...prev, transformMessage(completeMessage)]);
+            const transformed = transformMessage(completeMessage);
+            console.log('Transformed message:', transformed);
+
+            setMessages((prev) => {
+              console.log('Adding message to state. Current count:', prev.length);
+              return [...prev, transformed];
+            });
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up Realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [currentChannel.id, supabase]);
@@ -81,6 +101,8 @@ export function PageClient({
 
     setSending(true);
     try {
+      console.log('Sending message:', { channelId: currentChannel.id, content, mentions });
+
       const response = await fetch('/api/messages/send', {
         method: 'POST',
         headers: {
@@ -94,6 +116,7 @@ export function PageClient({
       });
 
       const data = await response.json();
+      console.log('Send response:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to send message');
@@ -101,6 +124,7 @@ export function PageClient({
 
       // Message will be added via Realtime subscription
       // No need to manually add to state
+      console.log('Message sent successfully, waiting for Realtime update');
 
       // TODO: Implement AI response via API if mentions exist
     } catch (error: any) {
@@ -116,6 +140,7 @@ export function PageClient({
       <Sidebar
         workspace={initialWorkspace}
         currentChannel={currentChannel}
+        currentUser={currentUser}
         onChannelSelect={setCurrentChannel}
       />
 

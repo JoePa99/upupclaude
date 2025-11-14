@@ -1,18 +1,20 @@
 'use client';
 
-import { Channel, Assistant, Workspace } from '@/types';
-import { cn } from '@/lib/utils';
+import { Channel, Assistant, Workspace, User } from '@/types';
+import { cn, getInitials } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
 interface SidebarProps {
   workspace: Workspace;
   currentChannel: Channel;
+  currentUser: User;
   onChannelSelect: (channel: Channel) => void;
 }
 
 export function Sidebar({
   workspace,
   currentChannel,
+  currentUser,
   onChannelSelect,
 }: SidebarProps) {
   return (
@@ -113,13 +115,13 @@ export function Sidebar({
       <div className="p-4 border-t border-border">
         <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-background-tertiary transition-colors cursor-pointer">
           <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-background text-sm font-semibold">
-            SC
+            {getInitials(currentUser.name)}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm text-foreground font-medium truncate">
-              Sarah Chen
+              {currentUser.name}
             </div>
-            <div className="text-xs text-foreground-tertiary">Admin</div>
+            <div className="text-xs text-foreground-tertiary capitalize">{currentUser.role}</div>
           </div>
         </div>
       </div>
