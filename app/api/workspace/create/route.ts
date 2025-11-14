@@ -23,23 +23,20 @@ export async function POST(request: Request) {
     const adminSupabase = createAdminClient();
 
     // 1. Create workspace
-    type WorkspaceInsert = Database['public']['Tables']['workspaces']['Insert'];
-    const workspaceData: WorkspaceInsert = {
-      name: workspaceName,
-      seats: seats,
-      message_limit: seats * 150, // 150 messages per seat
-    };
-
-    const { data: workspace, error: workspaceError } = await adminSupabase
-      .from('workspaces')
-      .insert(workspaceData)
+    const { data: workspace, error: workspaceError } = await (adminSupabase
+      .from('workspaces') as any)
+      .insert({
+        name: workspaceName,
+        seats: seats,
+        message_limit: seats * 150, // 150 messages per seat
+      })
       .select()
       .single();
 
     if (workspaceError) throw workspaceError;
 
     // 2. Create user profile (using admin to bypass RLS)
-    const { error: profileError } = await adminSupabase.from('users').insert({
+    const { error: profileError } = await (adminSupabase.from('users') as any).insert({
       id: user.id,
       workspace_id: workspace.id,
       name: userName,
@@ -50,8 +47,8 @@ export async function POST(request: Request) {
     if (profileError) throw profileError;
 
     // 3. Create default #general channel
-    const { data: channel, error: channelError } = await adminSupabase
-      .from('channels')
+    const { data: channel, error: channelError } = await (adminSupabase
+      .from('channels') as any)
       .insert({
         workspace_id: workspace.id,
         name: 'general',
@@ -65,8 +62,8 @@ export async function POST(request: Request) {
     if (channelError) throw channelError;
 
     // 4. Add user to the channel
-    const { error: memberError } = await adminSupabase
-      .from('channel_members')
+    const { error: memberError } = await (adminSupabase
+      .from('channel_members') as any)
       .insert({
         channel_id: channel.id,
         user_id: user.id,
