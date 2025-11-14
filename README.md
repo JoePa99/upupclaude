@@ -1,4 +1,4 @@
-# UpUp - AI-Powered Team Collaboration Platform
+# upupdnd - AI-Powered Team Collaboration Platform
 
 A Slack-like collaboration platform where humans and AI assistants work together seamlessly in channels.
 
@@ -204,7 +204,7 @@ npm start
 
 ## 🎨 Design Principles
 
-**Avoid "AI Slop" Aesthetic:**
+**Distinctive Design:**
 - ❌ Generic Inter/Roboto fonts
 - ❌ Purple gradients on white
 - ❌ Cookie-cutter layouts
@@ -270,5 +270,3 @@ This isn't just another chat tool. It's a **knowledge orchestration platform** w
 The interface should feel **warm, intelligent, and distinctively crafted** - not generic SaaS.
 
 ---
-
-Built with care to avoid the "AI slop" aesthetic. Every design choice is intentional.

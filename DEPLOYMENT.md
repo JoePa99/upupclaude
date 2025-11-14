@@ -1,6 +1,6 @@
 # Deployment Checklist
 
-Ready to deploy UpUp to production! Here's your complete checklist.
+Ready to deploy upupdnd to production! Here's your complete checklist.
 
 ## ✅ What's Built
 

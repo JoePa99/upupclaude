@@ -52,7 +52,7 @@ export default function SignIn() {
               ⇡
             </div>
             <h1 className="text-3xl font-serif font-bold text-foreground">
-              UpUp
+              upupdnd
             </h1>
           </div>
           <p className="text-foreground-secondary text-sm font-mono">
@@ -119,12 +119,6 @@ export default function SignIn() {
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="relative z-10">
-          <p className="text-foreground-tertiary text-xs font-mono">
-            Built with care to avoid the "AI slop" aesthetic
-          </p>
         </div>
       </motion.div>
 

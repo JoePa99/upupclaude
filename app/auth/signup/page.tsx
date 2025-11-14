@@ -67,7 +67,7 @@ export default function SignUp() {
               ⇡
             </div>
             <h1 className="text-3xl font-serif font-bold text-foreground">
-              UpUp
+              upupdnd
             </h1>
           </div>
           <p className="text-foreground-secondary text-sm font-mono">

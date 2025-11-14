@@ -1,9 +1,9 @@
-# UpUp - Design System
+# upupdnd - Design System
 
 ## 🎨 Visual Identity
 
 ### The Problem We're Solving
-Most AI chat tools look generic - the dreaded "AI slop" aesthetic:
+Most AI chat tools look generic:
 - Overused Inter/Roboto fonts
 - Purple gradients everywhere
 - Sterile white backgrounds
@@ -396,7 +396,7 @@ Despite dark theme:
 
 ## The "Crafted" Feel
 
-What makes this NOT feel like AI slop:
+What makes this feel distinctive:
 
 1. **Unexpected font choices** (monospace chat is distinctive)
 2. **Cohesive warm palette** (not generic blue/purple)

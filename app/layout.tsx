@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'UpUp - AI-Powered Team Collaboration',
+  title: 'upupdnd - AI-Powered Team Collaboration',
   description: 'Where humans and AI assistants collaborate seamlessly',
 };
 

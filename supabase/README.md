@@ -1,6 +1,6 @@
 # Supabase Setup Guide
 
-UpUp uses Supabase for:
+upupdnd uses Supabase for:
 - **Authentication** - User login/signup with email
 - **Database** - Postgres with multi-tenant data isolation
 - **Vector Storage** - pgvector for semantic search (replaces Pinecone)
