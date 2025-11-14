@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { PageClient } from './page-client';
-import { transformMessages } from '@/lib/transformers';
+import { transformMessages, transformAssistants, transformChannels } from '@/lib/transformers';
 
 export default async function Home() {
   const supabase = await createClient();
@@ -59,20 +59,30 @@ export default async function Home() {
     )
     .eq('user_id', user.id);
 
-  const channels = channelMemberships?.map((m: any) => m.channels) || [];
+  const channels = (channelMemberships || [])
+    .map((m: any) => m.channels)
+    .filter((c: any) => c !== null);
 
-  if (channels.length === 0) {
+  if (!channels || channels.length === 0) {
     // No channels available - shouldn't happen after setup, but handle it
     redirect('/setup');
   }
 
   const firstChannel = channels[0];
 
+  if (!firstChannel) {
+    redirect('/setup');
+  }
+
   // Fetch assistants in the workspace
   const { data: assistants } = await (supabase
     .from('assistants') as any)
     .select('*')
     .eq('workspace_id', userProfile.workspace_id);
+
+  // Transform assistants and channels to frontend format
+  const transformedAssistants = transformAssistants(assistants || []);
+  const transformedChannels = transformChannels(channels, [userProfile], transformedAssistants);
 
   // Fetch messages for the first channel
   const { data: messages } = await (supabase
@@ -95,16 +105,13 @@ export default async function Home() {
   return (
     <PageClient
       initialWorkspace={{
-        ...workspace,
+        id: workspace.id,
+        name: workspace.name,
         users: [userProfile],
-        channels: channels,
-        assistants: assistants || [],
+        channels: transformedChannels,
+        assistants: transformedAssistants,
       }}
-      initialChannel={{
-        ...firstChannel,
-        unread: 0,
-        assistants: assistants || [],
-      }}
+      initialChannel={transformedChannels[0]}
       initialMessages={transformMessages(messages || [])}
       currentUserId={user.id}
     />
