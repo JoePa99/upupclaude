@@ -74,14 +74,13 @@ export async function POST(request: Request) {
       author: author,
     };
 
-    // Trigger AI responses for mentioned assistants (async, non-blocking)
+    // Trigger AI responses for mentioned assistants - WAIT for them to complete
     if (mentions && mentions.length > 0) {
-      console.log('🔔 Triggering AI responses for', mentions.length, 'assistant(s):', mentions);
-
-      // Process AI responses asynchronously (don't block the user message response)
+      console.log('🔔 Processing AI responses for', mentions.length, 'assistant(s):', mentions);
       const adminSupabase = createAdminClient();
 
-      mentions.forEach(async (assistantId: string) => {
+      // Process all AI responses sequentially (await each one)
+      for (const assistantId of mentions) {
         try {
           console.log('  → Processing AI response for assistant:', assistantId);
 
@@ -94,7 +93,7 @@ export async function POST(request: Request) {
 
           if (assistantError || !assistant) {
             console.error('  ✗ Assistant not found:', assistantError);
-            return;
+            continue;
           }
 
           console.log('  ✓ Assistant found:', assistant.name, 'Provider:', assistant.model_provider);
@@ -111,7 +110,7 @@ export async function POST(request: Request) {
             aiResponse = await callGoogle(assistant, content);
           } else {
             console.error('  ✗ Unsupported AI provider:', assistant.model_provider);
-            return;
+            continue;
           }
 
           console.log('  ✓ AI response generated:', aiResponse.substring(0, 100) + '...');
@@ -132,20 +131,19 @@ export async function POST(request: Request) {
 
           if (messageError) {
             console.error('  ✗ Failed to insert AI response:', messageError);
-            return;
+            continue;
           }
 
           console.log('  ✅ AI response saved:', responseMessage.id);
         } catch (error: any) {
           console.error(`  ✗ Error generating AI response for ${assistantId}:`, error.message);
         }
-      });
+      }
     }
 
     return NextResponse.json({
       success: true,
       message: completeMessage,
-      aiResponsesTriggered: mentions && mentions.length > 0 ? mentions.length : 0,
     });
   } catch (error: any) {
     console.error('Error sending message:', error);

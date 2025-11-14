@@ -151,13 +151,8 @@ export function PageClient({
       }
 
       // Message will be added via Realtime subscription
-      // No need to manually add to state
-      console.log('Message sent successfully, waiting for Realtime update');
-
-      // Check if AI responses were triggered
-      if (data.aiResponsesTriggered > 0) {
-        console.log(`🤖 ${data.aiResponsesTriggered} AI response(s) triggered - watch for them to appear via Realtime`);
-      }
+      // AI responses (if any) will also appear via Realtime
+      console.log('Message sent successfully');
     } catch (error: any) {
       console.error('Error sending message:', error);
       alert(error.message || 'Failed to send message');
