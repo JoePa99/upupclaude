@@ -71,10 +71,13 @@ AI Accent: #4ecdc4 (cyan teal)
 ## 🚀 Tech Stack
 
 - **Frontend**: Next.js 14 (App Router) + React + TypeScript
-- **Styling**: Tailwind CSS with custom theme
+- **Backend**: Supabase (Postgres + Auth + Realtime + Storage)
+- **Vector DB**: pgvector (built into Supabase)
+- **Styling**: Tailwind CSS v3 with custom theme
 - **Animations**: Framer Motion
 - **Markdown**: react-markdown for AI responses
 - **UI Components**: Radix UI primitives
+- **Deployment**: Vercel
 
 ## 📁 Project Structure
 
@@ -124,11 +127,70 @@ Each assistant can use different LLM providers:
 - Recency boost in retrieval ranking
 - No explicit conflict detection needed
 
-## 🔧 Development
+## 🚀 Deployment to Vercel
+
+### 1. Set Up Supabase First
+
+Before deploying, you need a Supabase project. **See [supabase/README.md](supabase/README.md) for complete setup guide.**
+
+Quick steps:
+1. Create Supabase project at [supabase.com](https://supabase.com)
+2. Run `supabase/schema.sql` in SQL Editor
+3. Copy your project URL and API keys
+4. Configure storage buckets
+
+### 2. Deploy to Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
+
+1. Push your code to GitHub
+2. Import repository in Vercel
+3. Add environment variables:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
+
+# AI Providers (add when ready)
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_AI_API_KEY=...
+COHERE_API_KEY=...
+```
+
+4. Deploy!
+
+### 3. Verify Deployment
+
+- ✅ App loads at your-project.vercel.app
+- ✅ Auth works (can sign up/sign in)
+- ✅ Database queries work
+- ✅ Real-time updates working
+
+### Common Deployment Issues
+
+**Build Error: Tailwind PostCSS**
+- Fixed in this repo (using Tailwind v3.4.1)
+- PostCSS configured correctly in `postcss.config.mjs`
+
+**Environment Variables Not Found**
+- Make sure all `NEXT_PUBLIC_*` vars are set
+- Redeploy after adding env vars
+
+**Supabase Connection Fails**
+- Verify URL and keys are correct
+- Check Supabase project is not paused
+
+## 🔧 Local Development
 
 ```bash
 # Install dependencies
 npm install
+
+# Create .env.local with your Supabase keys
+cp .env.example .env.local
+# Edit .env.local with your values
 
 # Run development server
 npm run dev
