@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient();
 
@@ -32,7 +32,7 @@ export async function DELETE(
   }
 
   const adminClient = createAdminClient();
-  const documentId = params.id;
+  const { id: documentId } = await params;
 
   try {
     // Get document details first to know the storage path

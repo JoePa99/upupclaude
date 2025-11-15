@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient();
 
@@ -32,7 +32,7 @@ export async function GET(
   }
 
   const adminClient = createAdminClient();
-  const workspaceId = params.id;
+  const { id: workspaceId } = await params;
 
   try {
     // Get workspace details

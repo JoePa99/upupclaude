@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient();
 
@@ -32,7 +32,7 @@ export async function DELETE(
   }
 
   const adminClient = createAdminClient();
-  const assistantId = params.id;
+  const { id: assistantId } = await params;
 
   try {
     // Delete the assistant (this will cascade delete related data like embeddings if configured)
