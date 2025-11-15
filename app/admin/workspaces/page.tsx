@@ -3,6 +3,16 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isSuperAdmin } from '@/lib/admin';
 import { redirect } from 'next/navigation';
 
+interface Workspace {
+  id: string;
+  name: string;
+  seats: number;
+  price_per_seat: number;
+  messages_used: number;
+  message_limit: number;
+  created_at: string;
+}
+
 export default async function AdminWorkspaces() {
   // Check auth first
   const supabase = await createClient();
@@ -15,10 +25,12 @@ export default async function AdminWorkspaces() {
   // Use admin client to see ALL workspaces across the platform
   const adminClient = createAdminClient();
 
-  const { data: workspaces } = await adminClient
+  const { data: workspacesData } = await adminClient
     .from('workspaces')
     .select('*, users(count)')
     .order('created_at', { ascending: false });
+
+  const workspaces = workspacesData as Workspace[] | null;
 
   return (
     <div className="space-y-8">
