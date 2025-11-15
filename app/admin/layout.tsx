@@ -38,31 +38,7 @@ export default async function AdminLayout({
                   href="/admin/dashboard"
                   className="text-sm text-foreground-secondary hover:text-foreground transition-colors"
                 >
-                  Dashboard
-                </Link>
-                <Link
-                  href="/admin/assistants"
-                  className="text-sm text-foreground-secondary hover:text-foreground transition-colors"
-                >
-                  Assistants
-                </Link>
-                <Link
-                  href="/admin/workspaces"
-                  className="text-sm text-foreground-secondary hover:text-foreground transition-colors"
-                >
-                  Workspaces
-                </Link>
-                <Link
-                  href="/admin/documents"
-                  className="text-sm text-foreground-secondary hover:text-foreground transition-colors"
-                >
-                  Documents
-                </Link>
-                <Link
-                  href="/admin/embeddings"
-                  className="text-sm text-foreground-secondary hover:text-foreground transition-colors"
-                >
-                  Embeddings
+                  Companies
                 </Link>
               </nav>
             </div>
