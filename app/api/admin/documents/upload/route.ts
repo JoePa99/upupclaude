@@ -64,16 +64,18 @@ export async function POST(request: Request) {
     console.log('✓ [UPLOAD] File uploaded to storage:', storagePath);
 
     // Create document record (using admin client to bypass RLS)
-    const { data: document, error: documentError } = await adminClient
+    const documentData = {
+      workspace_id: workspaceId,
+      filename: file.name,
+      file_size: file.size,
+      mime_type: file.type,
+      storage_path: storagePath,
+      status: 'processing',
+    };
+
+    const { data: documentResult, error: documentError } = await adminClient
       .from('company_os_documents')
-      .insert({
-        workspace_id: workspaceId,
-        filename: file.name,
-        file_size: file.size,
-        mime_type: file.type,
-        storage_path: storagePath,
-        status: 'processing',
-      })
+      .insert(documentData as any)
       .select()
       .single();
 
@@ -81,6 +83,8 @@ export async function POST(request: Request) {
       console.error('❌ [UPLOAD] Database error:', documentError);
       throw new Error(`Database error: ${documentError.message}`);
     }
+
+    const document = documentResult as any;
 
     console.log('✓ [UPLOAD] Document record created:', document.id);
 
@@ -101,7 +105,7 @@ export async function POST(request: Request) {
       // Update document status to error
       await adminClient
         .from('company_os_documents')
-        .update({ status: 'error', metadata: { error: extractResult.error.message } })
+        .update({ status: 'error', metadata: { error: extractResult.error.message } } as any)
         .eq('id', document.id);
 
       return NextResponse.json({
