@@ -82,6 +82,47 @@ async function retrieveContext(
 }
 
 /**
+ * Fetch conversation history from the channel
+ */
+async function fetchConversationHistory(
+  supabaseClient: any,
+  channelId: string,
+  assistantId: string,
+  limit: number = 20
+): Promise<Array<{ role: string; content: string }>> {
+  console.log('💬 [HISTORY] Fetching conversation history...');
+
+  // Fetch recent messages from the channel
+  const { data: messages, error } = await supabaseClient
+    .from('messages')
+    .select('author_type, author_id, content, created_at')
+    .eq('channel_id', channelId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('❌ [HISTORY] Error fetching messages:', error);
+    return [];
+  }
+
+  if (!messages || messages.length === 0) {
+    console.log('ℹ️ [HISTORY] No previous messages found');
+    return [];
+  }
+
+  // Convert to conversation format (reverse to chronological order)
+  const history = messages
+    .reverse()
+    .map((msg: any) => ({
+      role: msg.author_type === 'human' ? 'user' : 'assistant',
+      content: msg.content,
+    }));
+
+  console.log(`✓ [HISTORY] Loaded ${history.length} messages`);
+  return history;
+}
+
+/**
  * Build enhanced system prompt with context
  */
 function buildContextualPrompt(
@@ -122,7 +163,7 @@ ${contextSection}
 Now respond to the user's question using the context above where relevant.`;
 }
 
-async function callOpenAI(assistant: any, userMessage: string, systemPrompt: string): Promise<string> {
+async function callOpenAI(assistant: any, conversationHistory: Array<{ role: string; content: string }>, systemPrompt: string): Promise<string> {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
   if (!apiKey) {
     throw new Error('OpenAI API key not configured');
@@ -138,7 +179,7 @@ async function callOpenAI(assistant: any, userMessage: string, systemPrompt: str
       model: assistant.model_name,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage },
+        ...conversationHistory,
       ],
       temperature: assistant.temperature,
       max_tokens: assistant.max_tokens,
@@ -154,7 +195,7 @@ async function callOpenAI(assistant: any, userMessage: string, systemPrompt: str
   return data.choices[0].message.content;
 }
 
-async function callAnthropic(assistant: any, userMessage: string, systemPrompt: string): Promise<string> {
+async function callAnthropic(assistant: any, conversationHistory: Array<{ role: string; content: string }>, systemPrompt: string): Promise<string> {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) {
     throw new Error('Anthropic API key not configured');
@@ -170,9 +211,7 @@ async function callAnthropic(assistant: any, userMessage: string, systemPrompt: 
     body: JSON.stringify({
       model: assistant.model_name,
       system: systemPrompt,
-      messages: [
-        { role: 'user', content: userMessage },
-      ],
+      messages: conversationHistory,
       temperature: assistant.temperature,
       max_tokens: assistant.max_tokens,
     }),
@@ -187,11 +226,17 @@ async function callAnthropic(assistant: any, userMessage: string, systemPrompt: 
   return data.content[0].text;
 }
 
-async function callGoogle(assistant: any, userMessage: string, systemPrompt: string): Promise<string> {
+async function callGoogle(assistant: any, conversationHistory: Array<{ role: string; content: string }>, systemPrompt: string): Promise<string> {
   const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
   if (!apiKey) {
     throw new Error('Google AI API key not configured');
   }
+
+  // Google uses a different format - convert conversation history
+  const contents = conversationHistory.map((msg, idx) => ({
+    role: msg.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: idx === 0 ? systemPrompt + '\n\n' + msg.content : msg.content }],
+  }));
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${assistant.model_name}:generateContent?key=${apiKey}`,
@@ -201,13 +246,7 @@ async function callGoogle(assistant: any, userMessage: string, systemPrompt: str
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: systemPrompt + '\n\n' + userMessage },
-            ],
-          },
-        ],
+        contents,
         generationConfig: {
           temperature: assistant.temperature,
           maxOutputTokens: assistant.max_tokens,
@@ -274,6 +313,14 @@ serve(async (req) => {
 
     console.log('✓ [AI-RESPOND] Assistant found:', assistant.name, 'Provider:', assistant.model_provider);
 
+    // Fetch conversation history
+    const conversationHistory = await fetchConversationHistory(
+      supabaseClient,
+      channelId,
+      assistantId,
+      20 // Last 20 messages
+    );
+
     // Retrieve relevant context from CompanyOS
     const contextChunks = await retrieveContext(
       supabaseClient,
@@ -290,16 +337,16 @@ serve(async (req) => {
       contextChunks
     );
 
-    // Call the appropriate AI provider with contextual prompt
-    console.log('🔄 [AI-RESPOND] Calling', assistant.model_provider, 'API with context...');
+    // Call the appropriate AI provider with conversation history and context
+    console.log('🔄 [AI-RESPOND] Calling', assistant.model_provider, 'API with context and history...');
     let aiResponse: string;
 
     if (assistant.model_provider === 'openai') {
-      aiResponse = await callOpenAI(assistant, userMessage, systemPrompt);
+      aiResponse = await callOpenAI(assistant, conversationHistory, systemPrompt);
     } else if (assistant.model_provider === 'anthropic') {
-      aiResponse = await callAnthropic(assistant, userMessage, systemPrompt);
+      aiResponse = await callAnthropic(assistant, conversationHistory, systemPrompt);
     } else if (assistant.model_provider === 'google') {
-      aiResponse = await callGoogle(assistant, userMessage, systemPrompt);
+      aiResponse = await callGoogle(assistant, conversationHistory, systemPrompt);
     } else {
       throw new Error(`Unsupported AI provider: ${assistant.model_provider}`);
     }
