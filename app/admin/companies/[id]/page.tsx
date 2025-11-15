@@ -1,8 +1,8 @@
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { isSuperAdmin } from '@/lib/admin';
-import { redirect } from 'next/navigation';
-import Link from 'next/link';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { CreateAssistantModal } from '@/components/CreateAssistantModal';
 
 interface Workspace {
   id: string;
@@ -19,6 +19,8 @@ interface Assistant {
   name: string;
   role: string;
   model: string;
+  temperature: number;
+  max_tokens: number;
   created_at: string;
 }
 
@@ -27,7 +29,9 @@ interface Document {
   filename: string;
   status: string;
   file_size: number;
+  mime_type: string;
   created_at: string;
+  metadata?: any;
 }
 
 interface User {
@@ -37,82 +41,160 @@ interface User {
   created_at: string;
 }
 
-export default async function CompanyDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export default function CompanyDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const workspaceId = params.id as string;
 
-  if (!user || !isSuperAdmin(user.email)) {
-    redirect('/');
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [assistants, setAssistants] = useState<Assistant[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [embeddingsCount, setEmbeddingsCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const [showCreateAssistant, setShowCreateAssistant] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    loadCompanyData();
+  }, [workspaceId]);
+
+  const loadCompanyData = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/admin/companies/${workspaceId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setWorkspace(data.workspace);
+        setAssistants(data.assistants || []);
+        setDocuments(data.documents || []);
+        setUsers(data.users || []);
+        setEmbeddingsCount(data.embeddingsCount || 0);
+      }
+    } catch (error) {
+      console.error('Failed to load company data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setUploading(true);
+    setUploadStatus(null);
+
+    const formData = new FormData(e.currentTarget);
+    formData.append('workspaceId', workspaceId);
+
+    try {
+      const response = await fetch('/api/admin/documents/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Upload failed');
+      }
+
+      setUploadStatus({
+        type: 'success',
+        message: result.message || 'Document uploaded successfully!',
+      });
+
+      // Reload data
+      loadCompanyData();
+
+      // Reset form
+      (e.target as HTMLFormElement).reset();
+    } catch (error: any) {
+      setUploadStatus({
+        type: 'error',
+        message: error.message || 'Upload failed',
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteAssistant = async (assistantId: string) => {
+    if (!confirm('Are you sure you want to delete this assistant?')) return;
+
+    try {
+      const response = await fetch(`/api/admin/assistants/${assistantId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        loadCompanyData();
+      }
+    } catch (error) {
+      console.error('Failed to delete assistant:', error);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+
+    try {
+      const response = await fetch(`/api/admin/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        loadCompanyData();
+      }
+    } catch (error) {
+      console.error('Failed to delete document:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-foreground-secondary">Loading...</div>
+      </div>
+    );
   }
-
-  const adminClient = createAdminClient();
-  const workspaceId = params.id;
-
-  // Get workspace details
-  const { data: workspaceData } = await adminClient
-    .from('workspaces')
-    .select('*')
-    .eq('id', workspaceId)
-    .single();
-
-  const workspace = workspaceData as Workspace | null;
 
   if (!workspace) {
-    redirect('/admin/dashboard');
+    return (
+      <div className="text-center py-8">
+        <div className="text-foreground-secondary">Company not found</div>
+        <button
+          onClick={() => router.push('/admin/dashboard')}
+          className="mt-4 text-accent hover:text-accent/80"
+        >
+          ← Back to Dashboard
+        </button>
+      </div>
+    );
   }
-
-  // Get company data
-  const [assistantsData, documentsData, usersData, embeddingsCount] = await Promise.all([
-    adminClient
-      .from('assistants')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: false }),
-    adminClient
-      .from('company_os_documents')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: false }),
-    adminClient
-      .from('users')
-      .select('id, email, full_name, created_at')
-      .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: false }),
-    adminClient
-      .from('embeddings')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId),
-  ]);
-
-  const assistants = assistantsData.data as Assistant[] | null;
-  const documents = documentsData.data as Document[] | null;
-  const users = usersData.data as User[] | null;
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <Link
-          href="/admin/dashboard"
+        <button
+          onClick={() => router.push('/admin/dashboard')}
           className="text-sm text-accent hover:text-accent/80 mb-2 inline-block"
         >
           ← Back to Companies
-        </Link>
+        </button>
         <h2 className="text-2xl font-serif font-semibold text-foreground mb-2">
           {workspace.name}
         </h2>
         <div className="flex items-center gap-4 text-sm text-foreground-secondary">
-          <span>{users?.length || 0} users</span>
+          <span>{users.length} users</span>
           <span>•</span>
-          <span>{assistants?.length || 0} assistants</span>
+          <span>{assistants.length} assistants</span>
           <span>•</span>
-          <span>{documents?.length || 0} documents</span>
+          <span>{documents.length} documents</span>
           <span>•</span>
-          <span>{embeddingsCount.count || 0} embeddings</span>
+          <span>{embeddingsCount} embeddings</span>
         </div>
       </div>
 
@@ -150,17 +232,17 @@ export default async function CompanyDetailPage({
       <div className="bg-background-secondary border border-border rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-border flex items-center justify-between">
           <h3 className="text-lg font-serif font-semibold text-foreground">
-            AI Assistants
+            AI Assistants ({assistants.length})
           </h3>
-          <Link
-            href={`/admin/companies/${workspaceId}/assistants/create`}
+          <button
+            onClick={() => setShowCreateAssistant(true)}
             className="px-4 py-2 bg-accent text-background rounded text-sm font-medium hover:bg-accent/90 transition-colors"
           >
             Create Assistant
-          </Link>
+          </button>
         </div>
 
-        {!assistants || assistants.length === 0 ? (
+        {assistants.length === 0 ? (
           <div className="px-6 py-8 text-center text-sm text-foreground-tertiary">
             No assistants created yet
           </div>
@@ -178,7 +260,10 @@ export default async function CompanyDetailPage({
                   Model
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-foreground-secondary uppercase">
-                  Created
+                  Config
+                </th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-foreground-secondary uppercase">
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -194,8 +279,16 @@ export default async function CompanyDetailPage({
                   <td className="px-6 py-4 text-sm text-foreground font-mono">
                     {assistant.model}
                   </td>
-                  <td className="px-6 py-4 text-sm text-foreground-secondary">
-                    {new Date(assistant.created_at).toLocaleDateString()}
+                  <td className="px-6 py-4 text-xs text-foreground-tertiary">
+                    temp: {assistant.temperature} / tokens: {assistant.max_tokens}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      onClick={() => handleDeleteAssistant(assistant.id)}
+                      className="text-red-600 hover:text-red-700 text-sm"
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -206,19 +299,53 @@ export default async function CompanyDetailPage({
 
       {/* Documents */}
       <div className="bg-background-secondary border border-border rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-          <h3 className="text-lg font-serif font-semibold text-foreground">
-            CompanyOS Documents
+        <div className="px-6 py-4 border-b border-border">
+          <h3 className="text-lg font-serif font-semibold text-foreground mb-4">
+            CompanyOS Documents ({documents.length})
           </h3>
-          <Link
-            href={`/admin/companies/${workspaceId}/documents/upload`}
-            className="px-4 py-2 bg-accent text-background rounded text-sm font-medium hover:bg-accent/90 transition-colors"
-          >
-            Upload Document
-          </Link>
+
+          <form onSubmit={handleFileUpload} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Upload Document
+              </label>
+              <input
+                type="file"
+                name="file"
+                accept=".pdf,.doc,.docx,.txt,.md"
+                className="w-full bg-background border border-border rounded px-4 py-2 text-foreground file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-accent file:text-background file:cursor-pointer"
+                required
+              />
+              <p className="text-xs text-foreground-tertiary mt-1">
+                Supported: PDF, Word, Text, Markdown
+              </p>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button
+                type="submit"
+                disabled={uploading}
+                className="px-6 py-2 bg-accent text-background rounded font-medium hover:bg-accent/90 transition-colors disabled:opacity-50"
+              >
+                {uploading ? 'Uploading...' : 'Upload Document'}
+              </button>
+
+              {uploadStatus && (
+                <span
+                  className={`text-sm ${
+                    uploadStatus.type === 'success'
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}
+                >
+                  {uploadStatus.message}
+                </span>
+              )}
+            </div>
+          </form>
         </div>
 
-        {!documents || documents.length === 0 ? (
+        {documents.length === 0 ? (
           <div className="px-6 py-8 text-center text-sm text-foreground-tertiary">
             No documents uploaded yet
           </div>
@@ -237,6 +364,9 @@ export default async function CompanyDetailPage({
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-foreground-secondary uppercase">
                   Created
+                </th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-foreground-secondary uppercase">
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -265,6 +395,14 @@ export default async function CompanyDetailPage({
                   <td className="px-6 py-4 text-sm text-foreground-secondary">
                     {new Date(doc.created_at).toLocaleDateString()}
                   </td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      onClick={() => handleDeleteDocument(doc.id)}
+                      className="text-red-600 hover:text-red-700 text-sm"
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -276,11 +414,11 @@ export default async function CompanyDetailPage({
       <div className="bg-background-secondary border border-border rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-border">
           <h3 className="text-lg font-serif font-semibold text-foreground">
-            Users
+            Users ({users.length})
           </h3>
         </div>
 
-        {!users || users.length === 0 ? (
+        {users.length === 0 ? (
           <div className="px-6 py-8 text-center text-sm text-foreground-tertiary">
             No users in this workspace
           </div>
@@ -317,6 +455,16 @@ export default async function CompanyDetailPage({
           </table>
         )}
       </div>
+
+      {/* Create Assistant Modal */}
+      <CreateAssistantModal
+        isOpen={showCreateAssistant}
+        onClose={() => setShowCreateAssistant(false)}
+        onSuccess={() => {
+          setShowCreateAssistant(false);
+          loadCompanyData();
+        }}
+      />
     </div>
   );
 }
