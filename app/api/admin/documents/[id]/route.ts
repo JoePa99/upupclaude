@@ -36,11 +36,13 @@ export async function DELETE(
 
   try {
     // Get document details first to know the storage path
-    const { data: document, error: fetchError } = await adminClient
+    const { data: documentData, error: fetchError } = await adminClient
       .from('company_os_documents')
       .select('storage_path')
       .eq('id', documentId)
       .single();
+
+    const document = documentData as { storage_path: string } | null;
 
     if (fetchError || !document) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
