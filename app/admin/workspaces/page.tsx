@@ -1,9 +1,21 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { isSuperAdmin } from '@/lib/admin';
+import { redirect } from 'next/navigation';
 
 export default async function AdminWorkspaces() {
+  // Check auth first
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: workspaces } = await supabase
+  if (!user || !isSuperAdmin(user.email)) {
+    redirect('/');
+  }
+
+  // Use admin client to see ALL workspaces across the platform
+  const adminClient = createAdminClient();
+
+  const { data: workspaces } = await adminClient
     .from('workspaces')
     .select('*, users(count)')
     .order('created_at', { ascending: false });

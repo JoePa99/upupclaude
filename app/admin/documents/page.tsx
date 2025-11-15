@@ -36,7 +36,7 @@ export default function AdminDocuments() {
 
   const loadWorkspaces = async () => {
     try {
-      const response = await fetch('/api/workspaces');
+      const response = await fetch('/api/admin/workspaces');
       if (response.ok) {
         const data = await response.json();
         setWorkspaces(data.workspaces || []);

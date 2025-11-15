@@ -1,19 +1,31 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { isSuperAdmin } from '@/lib/admin';
+import { redirect } from 'next/navigation';
 
 export default async function AdminDashboard() {
+  // Check auth first
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // Get system stats
+  if (!user || !isSuperAdmin(user.email)) {
+    redirect('/');
+  }
+
+  // Use admin client to see ALL platform data
+  const adminClient = createAdminClient();
+
+  // Get system stats using admin client to see ALL data across ALL workspaces
   const [workspaces, users, assistants, documents, embeddings, messages] =
     await Promise.all([
-      supabase.from('workspaces').select('*', { count: 'exact', head: true }),
-      supabase.from('users').select('*', { count: 'exact', head: true }),
-      supabase.from('assistants').select('*', { count: 'exact', head: true }),
-      supabase
+      adminClient.from('workspaces').select('*', { count: 'exact', head: true }),
+      adminClient.from('users').select('*', { count: 'exact', head: true }),
+      adminClient.from('assistants').select('*', { count: 'exact', head: true }),
+      adminClient
         .from('company_os_documents')
         .select('*', { count: 'exact', head: true }),
-      supabase.from('embeddings').select('*', { count: 'exact', head: true }),
-      supabase.from('messages').select('*', { count: 'exact', head: true }),
+      adminClient.from('embeddings').select('*', { count: 'exact', head: true }),
+      adminClient.from('messages').select('*', { count: 'exact', head: true }),
     ]);
 
   const stats = [

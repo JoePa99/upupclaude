@@ -1,10 +1,22 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { isSuperAdmin } from '@/lib/admin';
+import { redirect } from 'next/navigation';
 
 export default async function AdminEmbeddings() {
+  // Check auth first
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user || !isSuperAdmin(user.email)) {
+    redirect('/');
+  }
+
+  // Use admin client to see ALL embeddings across the platform
+  const adminClient = createAdminClient();
 
   // Get embedding stats by source type
-  const { data: stats } = await supabase
+  const { data: stats } = await adminClient
     .from('embeddings')
     .select('source_type, workspace_id')
     .order('created_at', { ascending: false });
@@ -37,7 +49,7 @@ export default async function AdminEmbeddings() {
   ];
 
   // Get recent embeddings
-  const { data: recentEmbeddings } = await supabase
+  const { data: recentEmbeddings } = await adminClient
     .from('embeddings')
     .select('*')
     .order('created_at', { ascending: false })
