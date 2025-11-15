@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 import { checkSuperAdmin } from '@/lib/admin';
 
@@ -6,6 +7,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
+  // Check auth with regular client
   const supabase = await createClient();
 
   // Check authentication
@@ -23,6 +25,9 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: 'Forbidden: Superadmin access required' }, { status: 403 });
   }
+
+  // Use admin client for all storage and database operations (bypass RLS)
+  const adminClient = createAdminClient();
 
   try {
     const formData = await request.formData();
@@ -43,8 +48,8 @@ export async function POST(request: Request) {
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const storagePath = `${workspaceId}/${timestamp}_${sanitizedFileName}`;
 
-    // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    // Upload to Supabase Storage (using admin client)
+    const { data: uploadData, error: uploadError } = await adminClient.storage
       .from('documents')
       .upload(storagePath, file, {
         contentType: file.type,
@@ -58,8 +63,8 @@ export async function POST(request: Request) {
 
     console.log('✓ [UPLOAD] File uploaded to storage:', storagePath);
 
-    // Create document record
-    const { data: document, error: documentError } = await supabase
+    // Create document record (using admin client to bypass RLS)
+    const { data: document, error: documentError } = await adminClient
       .from('company_os_documents')
       .insert({
         workspace_id: workspaceId,
@@ -79,9 +84,9 @@ export async function POST(request: Request) {
 
     console.log('✓ [UPLOAD] Document record created:', document.id);
 
-    // Trigger text extraction Edge Function
+    // Trigger text extraction Edge Function (using admin client)
     console.log('🔄 [UPLOAD] Triggering text extraction...');
-    const extractResult = await supabase.functions.invoke('extract-text', {
+    const extractResult = await adminClient.functions.invoke('extract-text', {
       body: {
         documentId: document.id,
         workspaceId: workspaceId,
@@ -94,7 +99,7 @@ export async function POST(request: Request) {
     if (extractResult.error) {
       console.error('❌ [UPLOAD] Text extraction failed:', extractResult.error);
       // Update document status to error
-      await supabase
+      await adminClient
         .from('company_os_documents')
         .update({ status: 'error', metadata: { error: extractResult.error.message } })
         .eq('id', document.id);
