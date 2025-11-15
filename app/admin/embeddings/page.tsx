@@ -3,6 +3,17 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isSuperAdmin } from '@/lib/admin';
 import { redirect } from 'next/navigation';
 
+interface Embedding {
+  id: string;
+  source_type: string;
+  content: string;
+  created_at: string;
+  metadata?: {
+    source?: string;
+    page?: number;
+  };
+}
+
 export default async function AdminEmbeddings() {
   // Check auth first
   const supabase = await createClient();
@@ -49,11 +60,13 @@ export default async function AdminEmbeddings() {
   ];
 
   // Get recent embeddings
-  const { data: recentEmbeddings } = await adminClient
+  const { data: recentEmbeddingsData } = await adminClient
     .from('embeddings')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(20);
+
+  const recentEmbeddings = recentEmbeddingsData as Embedding[] | null;
 
   return (
     <div className="space-y-8">
