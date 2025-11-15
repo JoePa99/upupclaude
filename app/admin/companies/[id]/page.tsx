@@ -4,6 +4,16 @@ import { isSuperAdmin } from '@/lib/admin';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 
+interface Workspace {
+  id: string;
+  name: string;
+  seats: number;
+  price_per_seat: number;
+  messages_used: number;
+  message_limit: number;
+  created_at: string;
+}
+
 interface Assistant {
   id: string;
   name: string;
@@ -43,11 +53,13 @@ export default async function CompanyDetailPage({
   const workspaceId = params.id;
 
   // Get workspace details
-  const { data: workspace } = await adminClient
+  const { data: workspaceData } = await adminClient
     .from('workspaces')
     .select('*')
     .eq('id', workspaceId)
     .single();
+
+  const workspace = workspaceData as Workspace | null;
 
   if (!workspace) {
     redirect('/admin/dashboard');
