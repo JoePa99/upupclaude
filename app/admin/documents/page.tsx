@@ -1,11 +1,65 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+interface Workspace {
+  id: string;
+  name: string;
+}
+
+interface Document {
+  id: string;
+  workspace_id: string;
+  filename: string;
+  file_size: number;
+  mime_type: string;
+  status: string;
+  created_at: string;
+  metadata?: any;
+}
 
 export default function AdminDocuments() {
-  const [selectedWorkspace, setSelectedWorkspace] = useState('');
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<{
+    type: 'success' | 'error' | 'warning';
+    message: string;
+  } | null>(null);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+
+  // Load workspaces on mount
+  useEffect(() => {
+    loadWorkspaces();
+    loadDocuments();
+  }, []);
+
+  const loadWorkspaces = async () => {
+    try {
+      const response = await fetch('/api/workspaces');
+      if (response.ok) {
+        const data = await response.json();
+        setWorkspaces(data.workspaces || []);
+      }
+    } catch (error) {
+      console.error('Failed to load workspaces:', error);
+    }
+  };
+
+  const loadDocuments = async () => {
+    setLoadingDocs(true);
+    try {
+      const response = await fetch('/api/admin/documents');
+      if (response.ok) {
+        const data = await response.json();
+        setDocuments(data.documents || []);
+      }
+    } catch (error) {
+      console.error('Failed to load documents:', error);
+    } finally {
+      setLoadingDocs(false);
+    }
+  };
 
   const handleFileUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -17,19 +71,48 @@ export default function AdminDocuments() {
     const workspaceId = formData.get('workspaceId') as string;
 
     if (!file || !workspaceId) {
-      setUploadStatus('Please select a file and workspace');
+      setUploadStatus({
+        type: 'error',
+        message: 'Please select a file and workspace',
+      });
       setUploading(false);
       return;
     }
 
     try {
-      // TODO: Implement file upload to Supabase Storage
-      // TODO: Trigger extract-text Edge Function
-      // TODO: Trigger generate-embeddings Edge Function
+      const response = await fetch('/api/admin/documents/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
-      setUploadStatus('Upload functionality coming soon...');
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Upload failed');
+      }
+
+      if (result.warning) {
+        setUploadStatus({
+          type: 'warning',
+          message: result.warning,
+        });
+      } else {
+        setUploadStatus({
+          type: 'success',
+          message: result.message || 'Document uploaded successfully!',
+        });
+      }
+
+      // Reload documents list
+      loadDocuments();
+
+      // Reset form
+      (e.target as HTMLFormElement).reset();
     } catch (error: any) {
-      setUploadStatus(`Error: ${error.message}`);
+      setUploadStatus({
+        type: 'error',
+        message: error.message || 'Upload failed',
+      });
     } finally {
       setUploading(false);
     }
@@ -63,8 +146,11 @@ export default function AdminDocuments() {
               required
             >
               <option value="">Select workspace...</option>
-              {/* TODO: Load workspaces dynamically */}
-              <option value="temp">Temporary - Load from DB</option>
+              {workspaces.map((workspace) => (
+                <option key={workspace.id} value={workspace.id}>
+                  {workspace.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -94,8 +180,16 @@ export default function AdminDocuments() {
             </button>
 
             {uploadStatus && (
-              <span className="text-sm text-foreground-secondary">
-                {uploadStatus}
+              <span
+                className={`text-sm ${
+                  uploadStatus.type === 'success'
+                    ? 'text-green-600'
+                    : uploadStatus.type === 'warning'
+                      ? 'text-yellow-600'
+                      : 'text-red-600'
+                }`}
+              >
+                {uploadStatus.message}
               </span>
             )}
           </div>
@@ -107,9 +201,60 @@ export default function AdminDocuments() {
         <h3 className="text-lg font-serif font-semibold text-foreground mb-4">
           Uploaded Documents
         </h3>
-        <div className="text-sm text-foreground-tertiary">
-          Document list coming soon...
-        </div>
+
+        {loadingDocs ? (
+          <div className="text-center py-8 text-sm text-foreground-tertiary">
+            Loading documents...
+          </div>
+        ) : documents.length === 0 ? (
+          <div className="text-center py-8 text-sm text-foreground-tertiary">
+            No documents uploaded yet. Upload a document to get started.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {documents.map((doc) => (
+              <div
+                key={doc.id}
+                className="bg-background border border-border rounded p-4"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-foreground mb-1">
+                      {doc.filename}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-foreground-tertiary">
+                      <span>{(doc.file_size / 1024).toFixed(1)} KB</span>
+                      <span>{doc.mime_type}</span>
+                      <span>
+                        {new Date(doc.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-2 py-1 rounded text-xs ${
+                        doc.status === 'ready'
+                          ? 'bg-green-500/20 text-green-600 border border-green-500/30'
+                          : doc.status === 'processing'
+                            ? 'bg-blue-500/20 text-blue-600 border border-blue-500/30'
+                            : doc.status === 'error'
+                              ? 'bg-red-500/20 text-red-600 border border-red-500/30'
+                              : 'bg-gray-500/20 text-gray-600 border border-gray-500/30'
+                      }`}
+                    >
+                      {doc.status}
+                    </span>
+                  </div>
+                </div>
+                {doc.metadata?.error && (
+                  <div className="mt-2 text-xs text-red-600">
+                    Error: {doc.metadata.error}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
