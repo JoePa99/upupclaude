@@ -22,7 +22,7 @@ export default async function AdminEmbeddings() {
     .order('created_at', { ascending: false });
 
   // Aggregate by source type
-  const aggregated = stats?.reduce(
+  const aggregated = (stats as Array<{ source_type: string; workspace_id: string }> | null)?.reduce(
     (acc, item) => {
       acc[item.source_type] = (acc[item.source_type] || 0) + 1;
       return acc;
