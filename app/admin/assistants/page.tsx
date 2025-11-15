@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import CreateAssistantModal from '@/components/CreateAssistantModal';
+import { CreateAssistantModal } from '@/components/CreateAssistantModal';
 
 interface Assistant {
   id: string;
@@ -141,12 +141,11 @@ export default function AdminAssistants() {
       </div>
 
       {/* Create Assistant Modal */}
-      {showCreateModal && (
-        <CreateAssistantModal
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={handleAssistantCreated}
-        />
-      )}
+      <CreateAssistantModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={handleAssistantCreated}
+      />
     </div>
   );
 }
