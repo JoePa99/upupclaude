@@ -93,7 +93,18 @@ export default async function AdminDashboard() {
         <h3 className="text-lg font-serif font-semibold text-foreground mb-4">
           Quick Actions
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <a
+            href="/admin/assistants"
+            className="block p-4 bg-background border border-border rounded hover:border-accent transition-colors"
+          >
+            <div className="text-sm font-medium text-foreground mb-1">
+              Manage Assistants
+            </div>
+            <div className="text-xs text-foreground-tertiary">
+              Create and configure AI assistants
+            </div>
+          </a>
           <a
             href="/admin/documents"
             className="block p-4 bg-background border border-border rounded hover:border-accent transition-colors"
@@ -110,10 +121,10 @@ export default async function AdminDashboard() {
             className="block p-4 bg-background border border-border rounded hover:border-accent transition-colors"
           >
             <div className="text-sm font-medium text-foreground mb-1">
-              Process Embeddings
+              View Embeddings
             </div>
             <div className="text-xs text-foreground-tertiary">
-              Generate vectors for new content
+              Monitor vector chunks and context
             </div>
           </a>
           <a

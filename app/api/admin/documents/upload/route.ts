@@ -103,9 +103,10 @@ export async function POST(request: Request) {
     if (extractResult.error) {
       console.error('❌ [UPLOAD] Text extraction failed:', extractResult.error);
       // Update document status to error
+      const errorUpdate: any = { status: 'error', metadata: { error: extractResult.error.message } };
       await adminClient
         .from('company_os_documents')
-        .update({ status: 'error', metadata: { error: extractResult.error.message } } as any)
+        .update(errorUpdate)
         .eq('id', document.id);
 
       return NextResponse.json({

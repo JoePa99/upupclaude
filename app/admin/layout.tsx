@@ -41,6 +41,12 @@ export default async function AdminLayout({
                   Dashboard
                 </Link>
                 <Link
+                  href="/admin/assistants"
+                  className="text-sm text-foreground-secondary hover:text-foreground transition-colors"
+                >
+                  Assistants
+                </Link>
+                <Link
                   href="/admin/workspaces"
                   className="text-sm text-foreground-secondary hover:text-foreground transition-colors"
                 >
