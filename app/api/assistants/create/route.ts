@@ -24,7 +24,16 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log('Create assistant request body:', body);
 
-    const { name, role, systemPrompt, modelProvider, modelName, temperature, maxTokens } = body;
+    const {
+      name,
+      role,
+      systemPrompt,
+      modelProvider,
+      modelName,
+      enableImageGeneration,
+      enableWebSearch,
+      enableDeepResearch,
+    } = body;
 
     if (!name || !role || !systemPrompt || !modelProvider || !modelName) {
       console.error('Missing required fields:', { name, role, systemPrompt, modelProvider, modelName });
@@ -57,8 +66,11 @@ export async function POST(request: Request) {
       system_prompt: systemPrompt.trim(),
       model_provider: modelProvider,
       model_name: modelName,
-      temperature: temperature ?? 0.7,
-      max_tokens: maxTokens ?? 4000,
+      temperature: null, // Use model defaults
+      max_tokens: null, // Use model defaults
+      enable_image_generation: enableImageGeneration ?? false,
+      enable_web_search: enableWebSearch ?? false,
+      enable_deep_research: enableDeepResearch ?? false,
       status: 'online',
       created_by: user.id,
     };

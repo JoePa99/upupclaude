@@ -34,8 +34,9 @@ export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssis
   const [systemPrompt, setSystemPrompt] = useState('');
   const [modelProvider, setModelProvider] = useState<'openai' | 'anthropic' | 'google'>('openai');
   const [modelName, setModelName] = useState('gpt-5.1');
-  const [temperature, setTemperature] = useState(0.7);
-  const [maxTokens, setMaxTokens] = useState(4000);
+  const [enableImageGeneration, setEnableImageGeneration] = useState(false);
+  const [enableWebSearch, setEnableWebSearch] = useState(false);
+  const [enableDeepResearch, setEnableDeepResearch] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,8 +55,9 @@ export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssis
           systemPrompt,
           modelProvider,
           modelName,
-          temperature,
-          maxTokens,
+          enableImageGeneration,
+          enableWebSearch,
+          enableDeepResearch,
         }),
       });
 
@@ -69,8 +71,9 @@ export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssis
       setName('');
       setRole('');
       setSystemPrompt('');
-      setTemperature(0.7);
-      setMaxTokens(4000);
+      setEnableImageGeneration(false);
+      setEnableWebSearch(false);
+      setEnableDeepResearch(false);
 
       onSuccess();
       onClose();
@@ -207,46 +210,64 @@ export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssis
                   </div>
                 </div>
 
-                {/* Advanced Settings */}
+                {/* Capabilities */}
                 <div className="space-y-4 pt-4 border-t border-border">
-                  <h3 className="text-sm font-semibold text-foreground">Advanced Settings</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Capabilities</h3>
+                  <p className="text-xs text-foreground-tertiary">
+                    Enable additional capabilities for this assistant. Each capability may route to specialized models.
+                  </p>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm text-foreground-secondary">
-                        Temperature: {temperature}
-                      </label>
-                      <span className="text-xs text-foreground-tertiary">
-                        {temperature < 0.3 ? 'Focused' : temperature < 0.7 ? 'Balanced' : 'Creative'}
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value={temperature}
-                      onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                      className="w-full accent-accent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-foreground-secondary mb-2">
-                      Max Tokens
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={enableImageGeneration}
+                        onChange={(e) => setEnableImageGeneration(e.target.checked)}
+                        className="w-4 h-4 rounded border-border text-accent focus:ring-accent focus:ring-offset-0"
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-foreground group-hover:text-accent transition-colors">
+                          Image Generation
+                        </div>
+                        <div className="text-xs text-foreground-tertiary">
+                          Generate images using Google Imagen 3 or DALL-E 3
+                        </div>
+                      </div>
                     </label>
-                    <input
-                      type="number"
-                      value={maxTokens}
-                      onChange={(e) => setMaxTokens(parseInt(e.target.value))}
-                      min="500"
-                      max="10000"
-                      step="500"
-                      className="w-full bg-background-secondary border border-border rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-accent transition-colors"
-                    />
-                    <p className="text-xs text-foreground-tertiary mt-1">
-                      Valid values: 500, 1000, 1500, 2000... up to 10,000
-                    </p>
+
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={enableWebSearch}
+                        onChange={(e) => setEnableWebSearch(e.target.checked)}
+                        className="w-4 h-4 rounded border-border text-accent focus:ring-accent focus:ring-offset-0"
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-foreground group-hover:text-accent transition-colors">
+                          Web Search
+                        </div>
+                        <div className="text-xs text-foreground-tertiary">
+                          Search the web for real-time information
+                        </div>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={enableDeepResearch}
+                        onChange={(e) => setEnableDeepResearch(e.target.checked)}
+                        className="w-4 h-4 rounded border-border text-accent focus:ring-accent focus:ring-offset-0"
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-foreground group-hover:text-accent transition-colors">
+                          Deep Research
+                        </div>
+                        <div className="text-xs text-foreground-tertiary">
+                          Enable extended reasoning with O3 deep research model
+                        </div>
+                      </div>
+                    </label>
                   </div>
                 </div>
 

@@ -41,22 +41,10 @@ export default async function AdminLayout({
                   Companies
                 </Link>
                 <Link
-                  href="/admin/assistants"
-                  className="text-sm text-foreground-secondary hover:text-foreground transition-colors"
-                >
-                  Assistants
-                </Link>
-                <Link
                   href="/admin/documents"
                   className="text-sm text-foreground-secondary hover:text-foreground transition-colors"
                 >
                   CompanyOS
-                </Link>
-                <Link
-                  href="/admin/playbooks"
-                  className="text-sm text-foreground-secondary hover:text-foreground transition-colors"
-                >
-                  Playbooks
                 </Link>
               </nav>
             </div>
