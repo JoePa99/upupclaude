@@ -296,7 +296,7 @@ serve(async (req) => {
     // Fetch assistant details
     const { data: assistant, error: assistantError } = await supabaseClient
       .from('assistants')
-      .select('*')
+      .select('id, workspace_id, name, role, system_prompt, model_provider, model_name, temperature, max_tokens, avatar_url, status')
       .eq('id', assistantId)
       .single();
 

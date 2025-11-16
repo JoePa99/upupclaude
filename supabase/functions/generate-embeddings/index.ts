@@ -121,6 +121,7 @@ serve(async (req) => {
 
         embeddingRecords.push({
           workspace_id: workspaceId,
+          source_id: documentId,
           content: chunk.content,
           embedding: embedding,
           source_type: 'company_os',
