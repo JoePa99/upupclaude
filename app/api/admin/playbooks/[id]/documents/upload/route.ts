@@ -123,12 +123,12 @@ export async function POST(
     if (extractResult.error) {
       console.error('❌ [PLAYBOOKS] Text extraction failed:', extractResult.error);
       // Update document status to error
-      await adminClient
-        .from('playbook_documents')
+      await (adminClient
+        .from('playbook_documents') as any)
         .update({
           status: 'error',
           metadata: { error: extractResult.error.message },
-        } as any)
+        })
         .eq('id', document.id);
 
       return NextResponse.json({
