@@ -36,8 +36,8 @@ export async function GET(
 
   try {
     // Fetch the assistant
-    const { data: assistant, error: assistantError } = await adminClient
-      .from('assistants')
+    const { data: assistant, error: assistantError } = await (adminClient
+      .from('assistants') as any)
       .select('*')
       .eq('id', assistantId)
       .single();
