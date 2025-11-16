@@ -15,9 +15,14 @@ major_version = 15
 enabled = true
 port = 54323
 
-[functions]
-# Enable Edge Functions
-enabled = true
+[functions.ai-respond]
+verify_jwt = false
+
+[functions.generate-embeddings]
+verify_jwt = false
+
+[functions.extract-text]
+verify_jwt = false
 
 [auth]
 enabled = true
