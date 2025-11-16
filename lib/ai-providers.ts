@@ -8,34 +8,15 @@ export async function callOpenAI(assistant: any, userMessage: string): Promise<s
     throw new Error('OpenAI API key not configured');
   }
 
-  // Determine if this is a reasoning model (o1, o3, gpt-5.1, etc.)
-  // Reasoning models don't support temperature and use max_completion_tokens
-  const modelName = assistant.model_name.toLowerCase();
-  const isReasoningModel =
-    modelName.includes('o1') ||
-    modelName.includes('o3') ||
-    modelName.startsWith('gpt-5.1') ||
-    modelName.includes('thinking');
-
-  const requestBody: any = {
+  // Don't send temperature or max_tokens - let OpenAI use defaults
+  // This avoids issues with reasoning models (o1, o3, gpt-5.1) that don't support these parameters
+  const requestBody = {
     model: assistant.model_name,
     messages: [
       { role: 'system', content: assistant.system_prompt },
       { role: 'user', content: userMessage },
     ],
   };
-
-  // Reasoning models don't support temperature parameter
-  if (!isReasoningModel) {
-    requestBody.temperature = assistant.temperature;
-  }
-
-  // Use the appropriate token parameter based on the model
-  if (isReasoningModel) {
-    requestBody.max_completion_tokens = assistant.max_tokens;
-  } else {
-    requestBody.max_tokens = assistant.max_tokens;
-  }
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
