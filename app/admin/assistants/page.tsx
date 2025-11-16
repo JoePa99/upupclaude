@@ -59,6 +59,27 @@ export default function AdminAssistants() {
     setEditingAssistant(undefined);
   };
 
+  const handleDelete = async (assistantId: string, assistantName: string) => {
+    if (!confirm(`Are you sure you want to delete "${assistantName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/assistants/${assistantId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete assistant');
+      }
+
+      loadAssistants();
+    } catch (error) {
+      console.error('Failed to delete assistant:', error);
+      alert('Failed to delete assistant. Please try again.');
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -152,12 +173,20 @@ export default function AdminAssistants() {
                     {new Date(assistant.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleEdit(assistant)}
-                      className="px-4 py-2 text-sm bg-accent/10 text-accent hover:bg-accent/20 rounded font-medium transition-colors"
-                    >
-                      Edit
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleEdit(assistant)}
+                        className="px-4 py-2 text-sm bg-accent/10 text-accent hover:bg-accent/20 rounded font-medium transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(assistant.id, assistant.name)}
+                        className="px-4 py-2 text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded font-medium transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
