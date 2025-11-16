@@ -50,7 +50,7 @@ export async function GET(
     const [assistants, documents, users, embeddingsCount] = await Promise.all([
       adminClient
         .from('assistants')
-        .select('*')
+        .select('id, workspace_id, name, role, system_prompt, model_provider, model_name, temperature, max_tokens, avatar_url, status, created_at, updated_at, created_by')
         .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false }),
       adminClient
@@ -60,7 +60,7 @@ export async function GET(
         .order('created_at', { ascending: false }),
       adminClient
         .from('users')
-        .select('id, email, full_name, created_at')
+        .select('id, email, name, created_at')
         .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false }),
       adminClient

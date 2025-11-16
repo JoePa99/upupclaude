@@ -37,7 +37,7 @@ interface Document {
 interface User {
   id: string;
   email: string;
-  full_name: string | null;
+  name: string | null;
   created_at: string;
 }
 
@@ -485,7 +485,7 @@ export default function CompanyDetailPage() {
                     {user.email}
                   </td>
                   <td className="px-6 py-4 text-sm text-foreground">
-                    {user.full_name || '—'}
+                    {user.name || '—'}
                   </td>
                   <td className="px-6 py-4 text-sm text-foreground-secondary">
                     {new Date(user.created_at).toLocaleDateString()}
