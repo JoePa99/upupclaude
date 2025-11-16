@@ -27,37 +27,52 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
   const [selectedCommand, setSelectedCommand] = useState<SlashCommand | undefined>();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Get available commands based on DM assistant's capabilities
+  // Get available commands based on assistants' capabilities
   const availableCommands: CommandOption[] = [];
+  const commandToAssistantMap: Record<SlashCommand, string> = {} as any;
+
+  // Helper to add command if not already added
+  const addCommand = (
+    cmd: SlashCommand,
+    label: string,
+    description: string,
+    icon: string,
+    assistantId: string,
+    assistantName: string
+  ) => {
+    if (!availableCommands.find(c => c.command === cmd)) {
+      availableCommands.push({ command: cmd, label, description, icon });
+      commandToAssistantMap[cmd] = assistantId;
+    }
+  };
 
   if (isDm && dmAssistantId) {
+    // In DM: only show commands for the DM assistant
     const dmAssistant = assistants.find(a => a.id === dmAssistantId);
     if (dmAssistant) {
       if (dmAssistant.enable_image_generation) {
-        availableCommands.push({
-          command: 'image',
-          label: 'Generate Image',
-          description: 'Create an image using gemini-2.5-flash-image',
-          icon: '🎨'
-        });
+        addCommand('image', 'Generate Image', 'Create an image using gemini-2.5-flash-image', '🎨', dmAssistant.id, dmAssistant.name);
       }
       if (dmAssistant.enable_web_search) {
-        availableCommands.push({
-          command: 'search',
-          label: 'Search The Web',
-          description: 'Search for real-time information online',
-          icon: '🔍'
-        });
+        addCommand('search', 'Search The Web', 'Search for real-time information online', '🔍', dmAssistant.id, dmAssistant.name);
       }
       if (dmAssistant.enable_deep_research) {
-        availableCommands.push({
-          command: 'research',
-          label: 'Conduct Deep Research',
-          description: 'Use GPT-o3 for extended reasoning and analysis',
-          icon: '🧠'
-        });
+        addCommand('research', 'Conduct Deep Research', 'Use GPT-o3 for extended reasoning and analysis', '🧠', dmAssistant.id, dmAssistant.name);
       }
     }
+  } else {
+    // In regular channel: show commands from all assistants
+    assistants.forEach(assistant => {
+      if (assistant.enable_image_generation) {
+        addCommand('image', 'Generate Image', `Ask ${assistant.name} to create an image`, '🎨', assistant.id, assistant.name);
+      }
+      if (assistant.enable_web_search) {
+        addCommand('search', 'Search The Web', `Ask ${assistant.name} to search online`, '🔍', assistant.id, assistant.name);
+      }
+      if (assistant.enable_deep_research) {
+        addCommand('research', 'Conduct Deep Research', `Ask ${assistant.name} for deep analysis`, '🧠', assistant.id, assistant.name);
+      }
+    });
   }
 
   // Reset selected index when dropdown opens
@@ -192,6 +207,15 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
           mentions.push(assistant.id);
         } else {
           console.log('✗ No assistant found for mention:', mentionText);
+        }
+      }
+
+      // If a command was selected in regular channel, auto-mention the assistant for that command
+      if (selectedCommand && commandToAssistantMap[selectedCommand]) {
+        const commandAssistantId = commandToAssistantMap[selectedCommand];
+        if (!mentions.includes(commandAssistantId)) {
+          console.log('✓ Auto-mentioning assistant for command:', selectedCommand, commandAssistantId);
+          mentions.push(commandAssistantId);
         }
       }
     }
@@ -367,16 +391,27 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
         <div className="mt-2 flex items-center justify-between text-xs text-foreground-tertiary">
           <div className="flex items-center gap-3">
             {!isDm && (
-              <span>
-                Type <kbd className="px-1.5 py-0.5 bg-background-tertiary rounded border border-border">@</kbd> to mention an assistant
-              </span>
+              <>
+                <span>
+                  Type <kbd className="px-1.5 py-0.5 bg-background-tertiary rounded border border-border">@</kbd> to mention
+                </span>
+                {availableCommands.length > 0 && (
+                  <span>
+                    <kbd className="px-1.5 py-0.5 bg-background-tertiary rounded border border-border">/</kbd> for commands
+                  </span>
+                )}
+              </>
             )}
-            {isDm && availableCommands.length > 0 && (
-              <span>
-                Type <kbd className="px-1.5 py-0.5 bg-background-tertiary rounded border border-border">/</kbd> for commands
-              </span>
+            {isDm && (
+              <>
+                {availableCommands.length > 0 && (
+                  <span>
+                    Type <kbd className="px-1.5 py-0.5 bg-background-tertiary rounded border border-border">/</kbd> for commands
+                  </span>
+                )}
+                <span>Direct message - responses are automatic</span>
+              </>
             )}
-            {isDm && <span>Direct message - responses are automatic</span>}
           </div>
           <span>147 messages remaining this month</span>
         </div>
