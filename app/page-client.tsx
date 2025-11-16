@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { transformMessage } from '@/lib/transformers';
 import { Sidebar } from '@/components/Sidebar';
@@ -27,10 +27,60 @@ export function PageClient({
   const [messages, setMessages] = useState<MessageType[]>(initialMessages);
   const [sending, setSending] = useState(false);
   const [typingAssistants, setTypingAssistants] = useState<string[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
   // Get current user from workspace
   const currentUser = workspace.users.find(u => u.id === currentUserId) || workspace.users[0];
+
+  // Scroll to bottom when messages change or channel changes
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, currentChannel.id]);
+
+  // Load messages for a specific channel
+  const loadChannelMessages = async (channelId: string) => {
+    try {
+      const { data: channelMessages } = await (supabase
+        .from('messages') as any)
+        .select('*')
+        .eq('channel_id', channelId)
+        .order('created_at', { ascending: true });
+
+      if (!channelMessages) return;
+
+      // Fetch author info for each message
+      const messagesWithAuthors = await Promise.all(
+        channelMessages.map(async (msg: any) => {
+          const table = msg.author_type === 'human' ? 'users' : 'assistants';
+          const { data: author } = await (supabase
+            .from(table) as any)
+            .select('id, name, email, avatar_url, role')
+            .eq('id', msg.author_id)
+            .single();
+
+          return {
+            ...msg,
+            author: author || { id: msg.author_id, name: 'Unknown', email: '', role: 'member' },
+          };
+        })
+      );
+
+      const transformed = messagesWithAuthors.map((msg) => transformMessage(msg));
+
+      // Replace messages for this channel
+      setMessages((prev) => [
+        ...prev.filter((m) => m.channelId !== channelId),
+        ...transformed,
+      ]);
+    } catch (error) {
+      console.error('Error loading channel messages:', error);
+    }
+  };
 
   // Handle assistant creation
   const handleAssistantCreated = async () => {
@@ -56,6 +106,15 @@ export function PageClient({
       });
     }
   };
+
+  // Load messages when channel changes
+  useEffect(() => {
+    // Check if we have messages for this channel
+    const hasMessages = messages.some((m) => m.channelId === currentChannel.id);
+    if (!hasMessages && currentChannel.id) {
+      loadChannelMessages(currentChannel.id);
+    }
+  }, [currentChannel.id]);
 
   // Set up Realtime subscription for new messages
   useEffect(() => {
@@ -174,6 +233,32 @@ export function PageClient({
     }
   };
 
+  const handleClearHistory = async () => {
+    if (!currentChannel.isDm) return;
+
+    const confirmed = confirm(
+      'Are you sure you want to clear this conversation history? This action cannot be undone.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/channels/${currentChannel.id}/clear`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear history');
+      }
+
+      // Remove messages from state
+      setMessages((prev) => prev.filter((m) => m.channelId !== currentChannel.id));
+    } catch (error: any) {
+      console.error('Error clearing history:', error);
+      alert(error.message || 'Failed to clear history');
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-hidden relative">
       <Sidebar
@@ -185,7 +270,7 @@ export function PageClient({
       />
 
       <div className="flex-1 flex flex-col relative z-10">
-        <ChannelHeader channel={currentChannel} />
+        <ChannelHeader channel={currentChannel} onClearHistory={handleClearHistory} />
 
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-5xl mx-auto">
@@ -241,6 +326,8 @@ export function PageClient({
                       </div>
                     );
                   })}
+                {/* Scroll anchor */}
+                <div ref={messagesEndRef} />
               </div>
             )}
           </div>

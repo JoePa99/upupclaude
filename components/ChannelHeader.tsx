@@ -5,9 +5,10 @@ import { motion } from 'framer-motion';
 
 interface ChannelHeaderProps {
   channel: Channel;
+  onClearHistory?: () => void;
 }
 
-export function ChannelHeader({ channel }: ChannelHeaderProps) {
+export function ChannelHeader({ channel, onClearHistory }: ChannelHeaderProps) {
   const memberCount = channel.members.length;
   const aiCount = channel.assistants.length;
 
@@ -59,6 +60,15 @@ export function ChannelHeader({ channel }: ChannelHeaderProps) {
             <span>·</span>
             <span>{aiCount} AI assistants</span>
           </div>
+          {channel.isDm && onClearHistory && (
+            <button
+              onClick={onClearHistory}
+              className="px-3 py-1.5 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 rounded border border-red-200 dark:border-red-900 transition-colors"
+              title="Clear conversation history"
+            >
+              Clear History
+            </button>
+          )}
         </div>
       </div>
     </motion.div>
