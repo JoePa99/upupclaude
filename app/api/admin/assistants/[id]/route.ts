@@ -55,8 +55,8 @@ export async function PATCH(
       max_tokens: maxTokens ?? 4000,
     };
 
-    const { data: assistant, error: updateError } = await adminClient
-      .from('assistants')
+    const { data: assistant, error: updateError } = await (adminClient
+      .from('assistants') as any)
       .update(updateData)
       .eq('id', assistantId)
       .select()
