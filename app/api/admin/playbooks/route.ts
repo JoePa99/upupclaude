@@ -32,8 +32,8 @@ export async function GET(request: Request) {
 
   try {
     // Fetch all playbooks
-    const { data: playbooks, error: playbooksError } = await adminClient
-      .from('playbooks')
+    const { data: playbooks, error: playbooksError } = await (adminClient
+      .from('playbooks') as any)
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -44,14 +44,14 @@ export async function GET(request: Request) {
     // Fetch workspace names and document counts for each playbook
     const playbooksWithDetails = await Promise.all(
       (playbooks || []).map(async (playbook: any) => {
-        const { data: workspace } = await adminClient
-          .from('workspaces')
+        const { data: workspace } = await (adminClient
+          .from('workspaces') as any)
           .select('name')
           .eq('id', playbook.workspace_id)
           .single();
 
-        const { count } = await adminClient
-          .from('playbook_documents')
+        const { count } = await (adminClient
+          .from('playbook_documents') as any)
           .select('id', { count: 'exact', head: true })
           .eq('playbook_id', playbook.id);
 
@@ -107,8 +107,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: playbook, error: createError } = await adminClient
-      .from('playbooks')
+    const { data: playbook, error: createError } = await (adminClient
+      .from('playbooks') as any)
       .insert({
         workspace_id: workspaceId,
         name,
