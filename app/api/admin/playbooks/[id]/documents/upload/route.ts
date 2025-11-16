@@ -38,8 +38,8 @@ export async function POST(
 
   try {
     // Verify playbook exists and get workspace_id
-    const { data: playbook, error: playbookError } = await adminClient
-      .from('playbooks')
+    const { data: playbook, error: playbookError } = await (adminClient
+      .from('playbooks') as any)
       .select('workspace_id')
       .eq('id', playbookId)
       .single();

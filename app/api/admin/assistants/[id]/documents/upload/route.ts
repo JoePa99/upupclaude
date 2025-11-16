@@ -38,8 +38,8 @@ export async function POST(
 
   try {
     // Verify assistant exists and get workspace_id
-    const { data: assistant, error: assistantError } = await adminClient
-      .from('assistants')
+    const { data: assistant, error: assistantError } = await (adminClient
+      .from('assistants') as any)
       .select('workspace_id')
       .eq('id', assistantId)
       .single();
