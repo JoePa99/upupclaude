@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, KeyboardEvent, useRef, useEffect } from 'react';
-import { Assistant } from '@/types';
+import { Assistant, SlashCommand } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface ChatInputProps {
@@ -9,23 +9,90 @@ interface ChatInputProps {
   channelName: string;
   isDm?: boolean;
   dmAssistantId?: string;
-  onSendMessage: (content: string, mentions: string[]) => void;
+  onSendMessage: (content: string, mentions: string[], command?: SlashCommand) => void;
+}
+
+interface CommandOption {
+  command: SlashCommand;
+  label: string;
+  description: string;
+  icon: string;
 }
 
 export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSendMessage }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [showMentions, setShowMentions] = useState(false);
+  const [showCommands, setShowCommands] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedCommand, setSelectedCommand] = useState<SlashCommand | undefined>();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Get available commands based on DM assistant's capabilities
+  const availableCommands: CommandOption[] = [];
+
+  if (isDm && dmAssistantId) {
+    const dmAssistant = assistants.find(a => a.id === dmAssistantId);
+    if (dmAssistant) {
+      if (dmAssistant.enable_image_generation) {
+        availableCommands.push({
+          command: 'image',
+          label: 'Generate Image',
+          description: 'Create an image using gemini-2.5-flash-image',
+          icon: '🎨'
+        });
+      }
+      if (dmAssistant.enable_web_search) {
+        availableCommands.push({
+          command: 'search',
+          label: 'Search The Web',
+          description: 'Search for real-time information online',
+          icon: '🔍'
+        });
+      }
+      if (dmAssistant.enable_deep_research) {
+        availableCommands.push({
+          command: 'research',
+          label: 'Conduct Deep Research',
+          description: 'Use GPT-o3 for extended reasoning and analysis',
+          icon: '🧠'
+        });
+      }
+    }
+  }
 
   // Reset selected index when dropdown opens
   useEffect(() => {
-    if (showMentions) {
+    if (showMentions || showCommands) {
       setSelectedIndex(0);
     }
-  }, [showMentions]);
+  }, [showMentions, showCommands]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle keyboard navigation in command dropdown
+    if (showCommands) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev + 1) % availableCommands.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev - 1 + availableCommands.length) % availableCommands.length);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        selectCommand(availableCommands[selectedIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowCommands(false);
+        setSelectedCommand(undefined);
+        return;
+      }
+    }
+
     // Handle keyboard navigation in mention dropdown
     if (showMentions) {
       if (e.key === 'ArrowDown') {
@@ -55,6 +122,13 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
       handleSend();
     }
 
+    // Show command dropdown when / is typed at the start of message
+    if (e.key === '/' && message.length === 0 && availableCommands.length > 0) {
+      e.preventDefault();
+      setMessage('/');
+      setShowCommands(true);
+    }
+
     // Show mention dropdown when @ is typed (and prevent default to avoid double @)
     if (e.key === '@' || (e.key === '2' && e.shiftKey)) {
       e.preventDefault();
@@ -63,9 +137,21 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
     }
   };
 
+  const selectCommand = (commandOption: CommandOption) => {
+    setSelectedCommand(commandOption.command);
+    setMessage('');
+    setShowCommands(false);
+
+    // Show a visual indicator that a command is active
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 0);
+  };
+
   const handleSend = () => {
     console.log('=== ChatInput handleSend called ===');
     console.log('Message:', message);
+    console.log('Selected command:', selectedCommand);
     console.log('Message trimmed:', message.trim());
     console.log('Is DM:', isDm);
     console.log('DM Assistant ID:', dmAssistantId);
@@ -112,9 +198,11 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
 
     console.log('=== Final mentions array:', mentions, '===');
 
-    onSendMessage(message, mentions);
+    onSendMessage(message, mentions, selectedCommand);
     setMessage('');
     setShowMentions(false);
+    setShowCommands(false);
+    setSelectedCommand(undefined);
   };
 
   const insertMention = (assistantName: string) => {
@@ -133,6 +221,47 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
   return (
     <div className="border-t border-border bg-background-secondary p-4">
       <div className="relative">
+        {/* Command dropdown */}
+        {showCommands && availableCommands.length > 0 && (
+          <div className="absolute bottom-full left-0 mb-2 w-80 bg-background-tertiary border border-border rounded-lg shadow-xl overflow-hidden">
+            <div className="p-2 border-b border-border">
+              <p className="text-xs text-foreground-tertiary font-semibold uppercase tracking-wide">
+                Slash Commands
+              </p>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {availableCommands.map((cmd, index) => (
+                <button
+                  key={cmd.command}
+                  onClick={() => selectCommand(cmd)}
+                  className={cn(
+                    "w-full flex items-start gap-3 px-3 py-2.5 transition-colors text-left",
+                    index === selectedIndex
+                      ? "bg-accent/20 border-l-2 border-accent"
+                      : "hover:bg-background-secondary"
+                  )}
+                >
+                  <div className="text-2xl mt-0.5">{cmd.icon}</div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-foreground">
+                      /{cmd.command} - {cmd.label}
+                    </div>
+                    <div className="text-xs text-foreground-tertiary mt-0.5">
+                      {cmd.description}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="p-2 border-t border-border bg-background-secondary/50">
+              <p className="text-xs text-foreground-tertiary">
+                <kbd className="px-1 py-0.5 bg-background-tertiary rounded border border-border">↑↓</kbd> to navigate ·{' '}
+                <kbd className="px-1 py-0.5 bg-background-tertiary rounded border border-border">⏎</kbd> to select
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Mention dropdown */}
         {showMentions && (
           <div className="absolute bottom-full left-0 mb-2 w-64 bg-background-tertiary border border-border rounded-lg shadow-xl overflow-hidden">
@@ -172,18 +301,44 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
 
         {/* Input area */}
         <div className="relative">
+          {/* Command indicator */}
+          {selectedCommand && (
+            <div className="absolute -top-10 left-0 flex items-center gap-2 bg-accent/10 border border-accent/30 rounded-lg px-3 py-1.5">
+              <span className="text-sm font-medium text-accent">
+                {selectedCommand === 'image' && '🎨 Generate Image'}
+                {selectedCommand === 'search' && '🔍 Search The Web'}
+                {selectedCommand === 'research' && '🧠 Conduct Deep Research'}
+              </span>
+              <button
+                onClick={() => setSelectedCommand(undefined)}
+                className="text-accent hover:text-accent/70 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+
           <textarea
             ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isDm ? `Message ${channelName}...` : `Message #${channelName} (use @assistant_name to mention)`}
+            placeholder={
+              selectedCommand
+                ? `Describe what you want to ${selectedCommand === 'image' ? 'generate' : selectedCommand === 'search' ? 'search for' : 'research'}...`
+                : isDm
+                  ? `Message ${channelName}...`
+                  : `Message #${channelName} (use @assistant_name to mention)`
+            }
             className={cn(
               'w-full bg-background border border-border rounded-lg px-4 py-3',
               'text-foreground placeholder:text-foreground-tertiary',
               'font-mono text-sm leading-relaxed',
-              'resize-none focus:outline-none focus:border-accent transition-colors',
-              'min-h-[60px] max-h-[200px]'
+              'resize-none focus:outline-none transition-colors',
+              'min-h-[60px] max-h-[200px]',
+              selectedCommand ? 'border-accent focus:border-accent' : 'focus:border-accent'
             )}
             rows={2}
           />
@@ -210,12 +365,19 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
 
         {/* Helper text */}
         <div className="mt-2 flex items-center justify-between text-xs text-foreground-tertiary">
-          {!isDm && (
-            <span>
-              Type <kbd className="px-1.5 py-0.5 bg-background-tertiary rounded border border-border">@</kbd> to mention an assistant
-            </span>
-          )}
-          {isDm && <span>Direct message - responses are automatic</span>}
+          <div className="flex items-center gap-3">
+            {!isDm && (
+              <span>
+                Type <kbd className="px-1.5 py-0.5 bg-background-tertiary rounded border border-border">@</kbd> to mention an assistant
+              </span>
+            )}
+            {isDm && availableCommands.length > 0 && (
+              <span>
+                Type <kbd className="px-1.5 py-0.5 bg-background-tertiary rounded border border-border">/</kbd> for commands
+              </span>
+            )}
+            {isDm && <span>Direct message - responses are automatic</span>}
+          </div>
           <span>147 messages remaining this month</span>
         </div>
       </div>
