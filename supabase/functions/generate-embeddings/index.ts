@@ -176,7 +176,11 @@ serve(async (req) => {
           ? 'agent_documents'
           : 'playbook_documents';
 
-    console.log('  ✓ Updating document status to ready in', tableName, '...');
+    console.log('  📝 Attempting to update document status...');
+    console.log('     Table:', tableName);
+    console.log('     Document ID:', documentId);
+    console.log('     Document Type:', documentType);
+
     const { data: updateData, error: updateError } = await supabase
       .from(tableName)
       .update({
@@ -196,6 +200,19 @@ serve(async (req) => {
       console.error('  Document ID was:', documentId);
       console.error('  Table was:', tableName);
       // Don't throw - embeddings were created successfully
+    } else if (!updateData || updateData.length === 0) {
+      console.error('  ⚠️  Update succeeded but found NO matching rows!');
+      console.error('  This means the document ID does not exist in', tableName);
+      console.error('  Document ID:', documentId);
+      console.error('  Checking if document exists...');
+
+      // Try to find the document
+      const { data: checkDoc } = await supabase
+        .from(tableName)
+        .select('id, status')
+        .eq('id', documentId);
+
+      console.error('  Document check result:', checkDoc);
     } else {
       console.log('  ✅ Document status updated successfully:', updateData);
     }
