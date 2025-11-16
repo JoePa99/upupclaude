@@ -249,6 +249,8 @@ export function PageClient({
         <ChatInput
           assistants={currentChannel.assistants}
           channelName={currentChannel.name}
+          isDm={currentChannel.isDm}
+          dmAssistantId={currentChannel.dmAssistantId}
           onSendMessage={handleSendMessage}
         />
       </div>

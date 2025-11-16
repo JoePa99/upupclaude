@@ -7,10 +7,12 @@ import { cn } from '@/lib/utils';
 interface ChatInputProps {
   assistants: Assistant[];
   channelName: string;
+  isDm?: boolean;
+  dmAssistantId?: string;
   onSendMessage: (content: string, mentions: string[]) => void;
 }
 
-export function ChatInput({ assistants, channelName, onSendMessage }: ChatInputProps) {
+export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSendMessage }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [showMentions, setShowMentions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -65,6 +67,8 @@ export function ChatInput({ assistants, channelName, onSendMessage }: ChatInputP
     console.log('=== ChatInput handleSend called ===');
     console.log('Message:', message);
     console.log('Message trimmed:', message.trim());
+    console.log('Is DM:', isDm);
+    console.log('DM Assistant ID:', dmAssistantId);
     console.log('Available assistants:', assistants);
 
     if (!message.trim()) {
@@ -72,30 +76,37 @@ export function ChatInput({ assistants, channelName, onSendMessage }: ChatInputP
       return;
     }
 
-    // Extract mentions - match @word pattern
-    const mentionRegex = /@([a-zA-Z0-9_]+)/g;
-    const mentions: string[] = [];
-    let match;
+    let mentions: string[] = [];
 
-    console.log('Starting mention detection...');
-    console.log('Testing regex on message:', message);
+    // In DM channels, automatically mention the assistant
+    if (isDm && dmAssistantId) {
+      console.log('DM channel detected, auto-mentioning assistant:', dmAssistantId);
+      mentions = [dmAssistantId];
+    } else {
+      // Extract mentions - match @word pattern
+      const mentionRegex = /@([a-zA-Z0-9_]+)/g;
+      let match;
 
-    while ((match = mentionRegex.exec(message)) !== null) {
-      const mentionText = match[1].toLowerCase(); // e.g., "sales_assistant"
-      console.log('✓ Found mention text:', mentionText);
+      console.log('Starting mention detection...');
+      console.log('Testing regex on message:', message);
 
-      // Try to match against assistant names (converted to slug format)
-      const assistant = assistants.find((a) => {
-        const assistantSlug = a.name.toLowerCase().replace(/\s+/g, '_');
-        console.log('  Comparing', mentionText, 'with', assistantSlug, 'from assistant:', a.name);
-        return assistantSlug === mentionText || a.name.toLowerCase().includes(mentionText);
-      });
+      while ((match = mentionRegex.exec(message)) !== null) {
+        const mentionText = match[1].toLowerCase(); // e.g., "sales_assistant"
+        console.log('✓ Found mention text:', mentionText);
 
-      if (assistant) {
-        console.log('✓ Matched assistant:', assistant.name, 'ID:', assistant.id);
-        mentions.push(assistant.id);
-      } else {
-        console.log('✗ No assistant found for mention:', mentionText);
+        // Try to match against assistant names (converted to slug format)
+        const assistant = assistants.find((a) => {
+          const assistantSlug = a.name.toLowerCase().replace(/\s+/g, '_');
+          console.log('  Comparing', mentionText, 'with', assistantSlug, 'from assistant:', a.name);
+          return assistantSlug === mentionText || a.name.toLowerCase().includes(mentionText);
+        });
+
+        if (assistant) {
+          console.log('✓ Matched assistant:', assistant.name, 'ID:', assistant.id);
+          mentions.push(assistant.id);
+        } else {
+          console.log('✗ No assistant found for mention:', mentionText);
+        }
       }
     }
 
@@ -166,7 +177,7 @@ export function ChatInput({ assistants, channelName, onSendMessage }: ChatInputP
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={`Message #${channelName} (use @assistant_name to mention)`}
+            placeholder={isDm ? `Message ${channelName}...` : `Message #${channelName} (use @assistant_name to mention)`}
             className={cn(
               'w-full bg-background border border-border rounded-lg px-4 py-3',
               'text-foreground placeholder:text-foreground-tertiary',
@@ -199,9 +210,12 @@ export function ChatInput({ assistants, channelName, onSendMessage }: ChatInputP
 
         {/* Helper text */}
         <div className="mt-2 flex items-center justify-between text-xs text-foreground-tertiary">
-          <span>
-            Type <kbd className="px-1.5 py-0.5 bg-background-tertiary rounded border border-border">@</kbd> to mention an assistant
-          </span>
+          {!isDm && (
+            <span>
+              Type <kbd className="px-1.5 py-0.5 bg-background-tertiary rounded border border-border">@</kbd> to mention an assistant
+            </span>
+          )}
+          {isDm && <span>Direct message - responses are automatic</span>}
           <span>147 messages remaining this month</span>
         </div>
       </div>

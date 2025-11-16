@@ -41,6 +41,8 @@ export interface Channel {
   members: User[];
   assistants: Assistant[];
   isPrivate: boolean;
+  isDm?: boolean;
+  dmAssistantId?: string;
   unreadCount?: number;
 }
 

@@ -80,6 +80,8 @@ export async function GET(
         name: existingChannel.name,
         description: existingChannel.description,
         isPrivate: existingChannel.is_private,
+        isDm: true,
+        dmAssistantId: assistantId,
         members: currentUser ? [currentUser] : [],
         assistants: [{
           id: assistant.id,
@@ -150,6 +152,8 @@ export async function GET(
       name: newChannel.name,
       description: newChannel.description,
       isPrivate: newChannel.is_private,
+      isDm: true,
+      dmAssistantId: assistantId,
       members: currentUser ? [currentUser] : [],
       assistants: [{
         id: assistant.id,
