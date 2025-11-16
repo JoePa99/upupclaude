@@ -69,9 +69,15 @@ export async function GET(
         .eq('workspace_id', workspaceId),
     ]);
 
+    // Transform assistants data to include 'model' field for UI
+    const transformedAssistants = (assistants.data || []).map((assistant: any) => ({
+      ...assistant,
+      model: assistant.model_name || assistant.model, // Use model_name or fallback to model
+    }));
+
     return NextResponse.json({
       workspace,
-      assistants: assistants.data || [],
+      assistants: transformedAssistants,
       documents: documents.data || [],
       users: users.data || [],
       embeddingsCount: embeddingsCount.count || 0,

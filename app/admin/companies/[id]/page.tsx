@@ -19,6 +19,9 @@ interface Assistant {
   name: string;
   role: string;
   model: string;
+  model_provider: 'openai' | 'anthropic' | 'google';
+  model_name: string;
+  system_prompt: string;
   temperature: number;
   max_tokens: number;
   created_at: string;
@@ -54,6 +57,7 @@ export default function CompanyDetailPage() {
   const [loading, setLoading] = useState(true);
 
   const [showCreateAssistant, setShowCreateAssistant] = useState(false);
+  const [editingAssistant, setEditingAssistant] = useState<Assistant | undefined>(undefined);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -164,6 +168,16 @@ export default function CompanyDetailPage() {
     } catch (error) {
       console.error('Failed to delete assistant:', error);
     }
+  };
+
+  const handleEditAssistant = (assistant: Assistant) => {
+    setEditingAssistant(assistant);
+    setShowCreateAssistant(true);
+  };
+
+  const handleCloseAssistantModal = () => {
+    setShowCreateAssistant(false);
+    setEditingAssistant(undefined);
   };
 
   const handleDeleteDocument = async (documentId: string) => {
@@ -313,12 +327,20 @@ export default function CompanyDetailPage() {
                     temp: {assistant.temperature} / tokens: {assistant.max_tokens}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleDeleteAssistant(assistant.id)}
-                      className="text-red-600 hover:text-red-700 text-sm"
-                    >
-                      Delete
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleEditAssistant(assistant)}
+                        className="px-4 py-2 text-sm bg-accent/10 text-accent hover:bg-accent/20 rounded font-medium transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAssistant(assistant.id)}
+                        className="px-4 py-2 text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded font-medium transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -497,14 +519,15 @@ export default function CompanyDetailPage() {
         )}
       </div>
 
-      {/* Create Assistant Modal */}
+      {/* Create/Edit Assistant Modal */}
       <CreateAssistantModal
         isOpen={showCreateAssistant}
-        onClose={() => setShowCreateAssistant(false)}
+        onClose={handleCloseAssistantModal}
         onSuccess={() => {
-          setShowCreateAssistant(false);
+          handleCloseAssistantModal();
           loadCompanyData();
         }}
+        editAssistant={editingAssistant}
       />
     </div>
   );
