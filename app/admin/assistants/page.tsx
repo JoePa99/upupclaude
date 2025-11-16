@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { CreateAssistantModal } from '@/components/CreateAssistantModal';
 
 interface Assistant {
@@ -111,12 +112,14 @@ export default function AdminAssistants() {
               assistants.map((assistant) => (
                 <tr key={assistant.id} className="hover:bg-background/50">
                   <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-foreground">
-                      {assistant.name}
-                    </div>
-                    <div className="text-xs text-foreground-tertiary">
-                      {assistant.id.substring(0, 8)}...
-                    </div>
+                    <Link href={`/admin/assistants/${assistant.id}`}>
+                      <div className="text-sm font-medium text-foreground hover:text-accent transition-colors cursor-pointer">
+                        {assistant.name}
+                      </div>
+                      <div className="text-xs text-foreground-tertiary">
+                        {assistant.id.substring(0, 8)}...
+                      </div>
+                    </Link>
                   </td>
                   <td className="px-6 py-4 text-sm text-foreground">
                     {assistant.role}

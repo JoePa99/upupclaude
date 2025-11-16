@@ -6,6 +6,71 @@ import { checkSuperAdmin } from '@/lib/admin';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient();
+
+  // Check authentication
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Check superadmin access
+  try {
+    checkSuperAdmin(user.email);
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Forbidden: Superadmin access required' },
+      { status: 403 }
+    );
+  }
+
+  const adminClient = createAdminClient();
+  const { id: assistantId } = await params;
+
+  try {
+    // Fetch the assistant
+    const { data: assistant, error: assistantError } = await adminClient
+      .from('assistants')
+      .select('*')
+      .eq('id', assistantId)
+      .single();
+
+    if (assistantError || !assistant) {
+      return NextResponse.json(
+        { error: 'Assistant not found' },
+        { status: 404 }
+      );
+    }
+
+    // Fetch workspace name
+    const { data: workspace } = await adminClient
+      .from('workspaces')
+      .select('name')
+      .eq('id', assistant.workspace_id)
+      .single();
+
+    return NextResponse.json({
+      assistant: {
+        ...assistant,
+        workspace_name: workspace?.name,
+      },
+    });
+  } catch (error: any) {
+    console.error('❌ [ADMIN] Error fetching assistant:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to fetch assistant' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

@@ -13,6 +13,9 @@ interface ExtractTextRequest {
   storagePath: string;
   fileName: string;
   fileType: string;
+  documentType?: 'company_os' | 'agent_doc' | 'playbook'; // Type of document
+  assistantId?: string; // Required for agent_doc
+  playbookId?: string; // Required for playbook
 }
 
 serve(async (req) => {
@@ -30,9 +33,13 @@ serve(async (req) => {
       storagePath,
       fileName,
       fileType,
+      documentType = 'company_os',
+      assistantId,
+      playbookId,
     }: ExtractTextRequest = await req.json();
 
     console.log('  Document ID:', documentId);
+    console.log('  Document Type:', documentType);
     console.log('  File:', fileName);
     console.log('  Type:', fileType);
 
@@ -89,10 +96,18 @@ serve(async (req) => {
       throw new Error('No text could be extracted from document');
     }
 
+    // Determine the correct table based on document type
+    const tableName =
+      documentType === 'company_os'
+        ? 'company_os_documents'
+        : documentType === 'agent_doc'
+          ? 'agent_documents'
+          : 'playbook_documents';
+
     // Update document with extracted text
-    console.log('  💾 Saving extracted text to database...');
+    console.log('  💾 Saving extracted text to', tableName, '...');
     const { error: updateError } = await supabase
-      .from('company_os_documents')
+      .from(tableName)
       .update({
         extracted_text: extractedText,
         metadata: {
@@ -117,6 +132,9 @@ serve(async (req) => {
         workspaceId,
         extractedText,
         fileName,
+        documentType,
+        assistantId,
+        playbookId,
       },
     });
 
@@ -124,7 +142,7 @@ serve(async (req) => {
       console.error('  ❌ Embedding generation failed:', embedResult.error);
       // Don't throw - text extraction succeeded
       await supabase
-        .from('company_os_documents')
+        .from(tableName)
         .update({
           status: 'ready',
           metadata: {
