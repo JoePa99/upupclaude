@@ -12,6 +12,9 @@ interface GenerateEmbeddingsRequest {
   workspaceId: string;
   extractedText: string;
   fileName: string;
+  documentType?: 'company_os' | 'agent_doc' | 'playbook';
+  assistantId?: string; // Required for agent_doc
+  playbookId?: string; // Required for playbook
 }
 
 interface Chunk {
@@ -92,9 +95,13 @@ serve(async (req) => {
       workspaceId,
       extractedText,
       fileName,
+      documentType = 'company_os',
+      assistantId,
+      playbookId,
     }: GenerateEmbeddingsRequest = await req.json();
 
     console.log('  Document ID:', documentId);
+    console.log('  Document Type:', documentType);
     console.log('  File:', fileName);
     console.log('  Text length:', extractedText.length, 'chars');
 
@@ -119,12 +126,13 @@ serve(async (req) => {
       try {
         const embedding = await generateEmbedding(chunk.content);
 
-        embeddingRecords.push({
+        const embeddingRecord: any = {
           workspace_id: workspaceId,
           source_id: documentId,
           content: chunk.content,
           embedding: embedding,
-          source_type: 'company_os',
+          source_type: documentType,
+          source_id: documentId,
           metadata: {
             source: fileName,
             document_id: documentId,
@@ -133,7 +141,14 @@ serve(async (req) => {
             end_char: chunk.endChar,
             total_chunks: chunks.length,
           },
-        });
+        };
+
+        // Add assistant_id for agent_doc type
+        if (documentType === 'agent_doc' && assistantId) {
+          embeddingRecord.assistant_id = assistantId;
+        }
+
+        embeddingRecords.push(embeddingRecord);
 
         console.log(`    ✓ Chunk ${i + 1} embedded (${embedding.length}d vector)`);
       } catch (error: any) {
@@ -155,11 +170,19 @@ serve(async (req) => {
     console.log('  ✓ Embeddings saved');
 
     // Update document status to ready
-    console.log('  ✓ Updating document status to ready...');
+    const tableName =
+      documentType === 'company_os'
+        ? 'company_os_documents'
+        : documentType === 'agent_doc'
+          ? 'agent_documents'
+          : 'playbook_documents';
+
+    console.log('  ✓ Updating document status to ready in', tableName, '...');
     const { error: updateError } = await supabase
-      .from('company_os_documents')
+      .from(tableName)
       .update({
         status: 'ready',
+        total_chunks: chunks.length,
         metadata: {
           processed_at: new Date().toISOString(),
           chunk_count: chunks.length,

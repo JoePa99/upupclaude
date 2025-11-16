@@ -40,6 +40,12 @@ export default async function AdminLayout({
                 >
                   Companies
                 </Link>
+                <Link
+                  href="/admin/documents"
+                  className="text-sm text-foreground-secondary hover:text-foreground transition-colors"
+                >
+                  CompanyOS
+                </Link>
               </nav>
             </div>
             <div className="flex items-center gap-4">

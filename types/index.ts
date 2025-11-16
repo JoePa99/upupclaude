@@ -20,7 +20,12 @@ export interface Assistant {
   };
   avatar?: string;
   status: 'online' | 'offline';
+  enable_image_generation?: boolean;
+  enable_web_search?: boolean;
+  enable_deep_research?: boolean;
 }
+
+export type SlashCommand = 'image' | 'search' | 'research';
 
 export interface Message {
   id: string;
@@ -30,6 +35,7 @@ export interface Message {
   author: User | Assistant;
   content: string;
   mentions: string[];
+  command?: SlashCommand;
   timestamp: Date;
   countsTowardLimit: boolean;
 }

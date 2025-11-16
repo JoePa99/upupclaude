@@ -161,12 +161,12 @@ export default function AdminDocuments() {
             <input
               type="file"
               name="file"
-              accept=".pdf,.doc,.docx,.txt,.md"
+              accept=".pdf,.doc,.docx,.txt,.md,.pptx,.ppt,.xlsx,.xls,.csv"
               className="w-full bg-background border border-border rounded px-4 py-2 text-foreground file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-accent file:text-background file:cursor-pointer"
               required
             />
             <p className="text-xs text-foreground-tertiary mt-1">
-              Supported formats: PDF, Word, Text, Markdown
+              Supported formats: PDF, Word, PowerPoint, Excel, CSV, Text, Markdown
             </p>
           </div>
 
