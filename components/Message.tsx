@@ -4,10 +4,33 @@ import { Message as MessageType } from '@/types';
 import { formatTime, getInitials, getAvatarColor, cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useState } from 'react';
 
 interface MessageProps {
   message: MessageType;
   index: number;
+}
+
+function CopyButton({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="px-2 py-1 text-xs rounded bg-background-tertiary hover:bg-background border border-border text-foreground-tertiary hover:text-foreground transition-colors"
+    >
+      {copied ? '✓ Copied' : 'Copy'}
+    </button>
+  );
 }
 
 export function Message({ message, index }: MessageProps) {
@@ -72,42 +95,171 @@ export function Message({ message, index }: MessageProps) {
           <div
             className={cn(
               'text-foreground-secondary leading-relaxed',
-              isAI && 'prose-custom'
+              isAI && 'prose-custom max-w-none'
             )}
           >
             {isAI ? (
               <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
                 components={{
-                  p: ({ children }) => <p className="mb-3">{children}</p>,
-                  strong: ({ children }) => (
-                    <strong className="text-foreground font-semibold">
-                      {children}
-                    </strong>
+                  // Paragraphs
+                  p: ({ children }) => (
+                    <p className="mb-4 last:mb-0 leading-relaxed">{children}</p>
                   ),
-                  ul: ({ children }) => (
-                    <ul className="list-disc list-inside space-y-1 mb-3">
-                      {children}
-                    </ul>
-                  ),
-                  li: ({ children }) => (
-                    <li className="text-foreground-secondary">{children}</li>
-                  ),
+
+                  // Headings
                   h1: ({ children }) => (
-                    <h1 className="text-xl font-serif font-semibold text-foreground mb-3 mt-4">
+                    <h1 className="text-2xl font-serif font-bold text-foreground mb-4 mt-6 first:mt-0 pb-2 border-b border-border">
                       {children}
                     </h1>
                   ),
                   h2: ({ children }) => (
-                    <h2 className="text-lg font-serif font-semibold text-foreground mb-2 mt-3">
+                    <h2 className="text-xl font-serif font-bold text-foreground mb-3 mt-5 first:mt-0">
                       {children}
                     </h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="text-lg font-serif font-semibold text-foreground mb-2 mt-4 first:mt-0">
+                      {children}
+                    </h3>
+                  ),
+                  h4: ({ children }) => (
+                    <h4 className="text-base font-serif font-semibold text-foreground mb-2 mt-3 first:mt-0">
+                      {children}
+                    </h4>
+                  ),
+
+                  // Text formatting
+                  strong: ({ children }) => (
+                    <strong className="text-foreground font-bold">
+                      {children}
+                    </strong>
+                  ),
+                  em: ({ children }) => (
+                    <em className="text-foreground italic">{children}</em>
+                  ),
+
+                  // Code blocks
+                  code: ({ node, inline, className, children, ...props }: any) => {
+                    const match = /language-(\w+)/.exec(className || '');
+                    const language = match ? match[1] : '';
+                    const codeString = String(children).replace(/\n$/, '');
+
+                    return !inline && language ? (
+                      <div className="my-4 rounded-lg overflow-hidden border border-border shadow-lg group">
+                        <div className="bg-background-secondary px-4 py-2 border-b border-border flex items-center justify-between">
+                          <span className="text-xs font-mono text-foreground-tertiary uppercase tracking-wide">
+                            {language}
+                          </span>
+                          <CopyButton code={codeString} />
+                        </div>
+                        <SyntaxHighlighter
+                          style={vscDarkPlus}
+                          language={language}
+                          PreTag="div"
+                          className="!m-0 !bg-background-tertiary text-sm"
+                          customStyle={{
+                            margin: 0,
+                            padding: '1rem',
+                            background: 'transparent',
+                          }}
+                          showLineNumbers
+                          {...props}
+                        >
+                          {codeString}
+                        </SyntaxHighlighter>
+                      </div>
+                    ) : (
+                      <code
+                        className="px-1.5 py-0.5 rounded bg-background-secondary text-accent font-mono text-sm border border-border"
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                    );
+                  },
+
+                  // Lists
+                  ul: ({ children }) => (
+                    <ul className="list-disc list-outside ml-6 space-y-2 mb-4 text-foreground-secondary">
+                      {children}
+                    </ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="list-decimal list-outside ml-6 space-y-2 mb-4 text-foreground-secondary">
+                      {children}
+                    </ol>
+                  ),
+                  li: ({ children }) => (
+                    <li className="leading-relaxed">{children}</li>
+                  ),
+
+                  // Blockquotes
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-4 border-accent/40 pl-4 py-2 my-4 italic text-foreground-secondary bg-accent/5 rounded-r">
+                      {children}
+                    </blockquote>
+                  ),
+
+                  // Links
+                  a: ({ children, href }) => (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent hover:text-accent/80 underline underline-offset-2 transition-colors"
+                    >
+                      {children}
+                    </a>
+                  ),
+
+                  // Tables
+                  table: ({ children }) => (
+                    <div className="my-4 overflow-x-auto">
+                      <table className="min-w-full border-collapse border border-border rounded-lg overflow-hidden">
+                        {children}
+                      </table>
+                    </div>
+                  ),
+                  thead: ({ children }) => (
+                    <thead className="bg-background-secondary">{children}</thead>
+                  ),
+                  tbody: ({ children }) => <tbody>{children}</tbody>,
+                  tr: ({ children }) => (
+                    <tr className="border-b border-border last:border-0">
+                      {children}
+                    </tr>
+                  ),
+                  th: ({ children }) => (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground border-r border-border last:border-0">
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="px-4 py-3 text-sm text-foreground-secondary border-r border-border last:border-0">
+                      {children}
+                    </td>
+                  ),
+
+                  // Horizontal rule
+                  hr: () => (
+                    <hr className="my-6 border-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                  ),
+
+                  // Images
+                  img: ({ src, alt }) => (
+                    <img
+                      src={src}
+                      alt={alt || ''}
+                      className="rounded-lg max-w-full h-auto my-4 border border-border shadow-sm"
+                    />
                   ),
                 }}
               >
                 {message.content}
               </ReactMarkdown>
             ) : (
-              <p>{message.content}</p>
+              <p className="leading-relaxed">{message.content}</p>
             )}
           </div>
 
