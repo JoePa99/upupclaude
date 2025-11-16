@@ -456,7 +456,7 @@ export default function AssistantDetailPage({
                   <div>
                     <div className="text-sm font-medium text-foreground">Image Generation</div>
                     <div className="text-xs text-foreground-tertiary">
-                      Generate images using Google Imagen 3 or DALL-E 3
+                      Generate images using gemini-2.5-flash-image
                     </div>
                   </div>
                 </label>
