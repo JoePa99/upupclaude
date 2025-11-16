@@ -164,6 +164,12 @@ export function PageClient({
             console.log('Transformed message:', transformed);
 
             setMessages((prev) => {
+              // Check if message already exists (to avoid duplicates)
+              const exists = prev.some((m) => m.id === transformed.id);
+              if (exists) {
+                console.log('Message already exists, skipping duplicate:', transformed.id);
+                return prev;
+              }
               console.log('Adding message to state. Current count:', prev.length);
               return [...prev, transformed];
             });
@@ -222,8 +228,20 @@ export function PageClient({
         throw new Error(data.error || 'Failed to send message');
       }
 
+      // If AI responses were returned, add them to state immediately
+      // This is more reliable than waiting for Realtime
+      if (data.aiResponses && data.aiResponses.length > 0) {
+        console.log('Adding', data.aiResponses.length, 'AI response(s) to state');
+        const transformedAiResponses = data.aiResponses.map((msg: any) => transformMessage(msg));
+        setMessages((prev) => [...prev, ...transformedAiResponses]);
+
+        // Remove typing indicators for assistants that responded
+        const respondedAssistantIds = data.aiResponses.map((msg: any) => msg.author_id);
+        setTypingAssistants((prev) => prev.filter((id) => !respondedAssistantIds.includes(id)));
+      }
+
       // Message will be added via Realtime subscription
-      // AI responses (if any) will also appear via Realtime
+      // AI responses (if any) will also appear via Realtime (as backup)
       console.log('Message sent successfully');
     } catch (error: any) {
       console.error('Error sending message:', error);

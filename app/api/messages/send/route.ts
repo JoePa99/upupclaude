@@ -104,6 +104,32 @@ export async function POST(request: Request) {
       );
 
       console.log('Edge Function invocation results:', edgeFunctionResults);
+
+      // Collect successful AI response messages to return to client
+      const aiResponses = [];
+      for (const result of edgeFunctionResults) {
+        if (result.status === 'fulfilled' && result.value.success && result.value.data?.message) {
+          const aiMessage = result.value.data.message;
+
+          // Fetch assistant info for the response
+          const { data: assistant } = await (supabase
+            .from('assistants') as any)
+            .select('id, name, email, avatar_url, role')
+            .eq('id', aiMessage.author_id)
+            .single();
+
+          aiResponses.push({
+            ...aiMessage,
+            author: assistant || { id: aiMessage.author_id, name: 'Unknown', email: '', role: 'assistant' },
+          });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: completeMessage,
+        aiResponses: aiResponses.length > 0 ? aiResponses : undefined,
+      });
     }
 
     return NextResponse.json({
