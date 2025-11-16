@@ -50,8 +50,8 @@ export async function GET(
     }
 
     // Fetch workspace name
-    const { data: workspace } = await adminClient
-      .from('workspaces')
+    const { data: workspace } = await (adminClient
+      .from('workspaces') as any)
       .select('name')
       .eq('id', assistant.workspace_id)
       .single();
