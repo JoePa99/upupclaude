@@ -36,8 +36,8 @@ export async function DELETE(
 
   try {
     // Fetch document to get storage path
-    const { data: document, error: fetchError } = await adminClient
-      .from('playbook_documents')
+    const { data: document, error: fetchError } = await (adminClient
+      .from('playbook_documents') as any)
       .select('storage_path')
       .eq('id', documentId)
       .eq('playbook_id', playbookId)
@@ -53,7 +53,7 @@ export async function DELETE(
     // Delete from storage
     const { error: storageError } = await adminClient.storage
       .from('documents')
-      .remove([document.storage_path as string]);
+      .remove([document.storage_path]);
 
     if (storageError) {
       console.error('❌ [PLAYBOOKS] Storage deletion error:', storageError);

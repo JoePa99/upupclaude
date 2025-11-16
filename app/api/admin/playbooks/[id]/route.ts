@@ -36,8 +36,8 @@ export async function DELETE(
 
   try {
     // Fetch all documents for this playbook to delete from storage
-    const { data: documents } = await adminClient
-      .from('playbook_documents')
+    const { data: documents } = await (adminClient
+      .from('playbook_documents') as any)
       .select('id, storage_path')
       .eq('playbook_id', playbookId);
 
