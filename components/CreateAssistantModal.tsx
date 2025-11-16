@@ -1,13 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+
+interface Assistant {
+  id: string;
+  name: string;
+  role: string;
+  system_prompt: string;
+  model_provider: 'openai' | 'anthropic' | 'google';
+  model_name: string;
+  temperature: number;
+  max_tokens: number;
+}
 
 interface CreateAssistantModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editAssistant?: Assistant;
 }
 
 const MODEL_OPTIONS = {
@@ -28,7 +40,7 @@ const MODEL_OPTIONS = {
   ],
 };
 
-export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssistantModalProps) {
+export function CreateAssistantModal({ isOpen, onClose, onSuccess, editAssistant }: CreateAssistantModalProps) {
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
@@ -39,14 +51,41 @@ export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssis
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Populate form when editing
+  useEffect(() => {
+    if (editAssistant) {
+      setName(editAssistant.name);
+      setRole(editAssistant.role);
+      setSystemPrompt(editAssistant.system_prompt);
+      setModelProvider(editAssistant.model_provider);
+      setModelName(editAssistant.model_name);
+      setTemperature(editAssistant.temperature);
+      setMaxTokens(editAssistant.max_tokens);
+    } else {
+      // Reset form for creating
+      setName('');
+      setRole('');
+      setSystemPrompt('');
+      setModelProvider('openai');
+      setModelName('gpt-5.1');
+      setTemperature(0.7);
+      setMaxTokens(4000);
+    }
+  }, [editAssistant]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setCreating(true);
 
     try {
-      const response = await fetch('/api/assistants/create', {
-        method: 'POST',
+      const url = editAssistant
+        ? `/api/admin/assistants/${editAssistant.id}`
+        : '/api/assistants/create';
+      const method = editAssistant ? 'PATCH' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
@@ -62,7 +101,7 @@ export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssis
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create assistant');
+        throw new Error(data.error || `Failed to ${editAssistant ? 'update' : 'create'} assistant`);
       }
 
       // Reset form
@@ -105,10 +144,12 @@ export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssis
               {/* Header */}
               <div className="p-6 border-b border-border">
                 <h2 className="text-2xl font-serif font-semibold text-foreground">
-                  Create AI Assistant
+                  {editAssistant ? 'Edit AI Assistant' : 'Create AI Assistant'}
                 </h2>
                 <p className="text-sm text-foreground-secondary mt-1">
-                  Configure a new AI assistant for your workspace
+                  {editAssistant
+                    ? 'Update the configuration for this AI assistant'
+                    : 'Configure a new AI assistant for your workspace'}
                 </p>
               </div>
 
@@ -268,7 +309,9 @@ export function CreateAssistantModal({ isOpen, onClose, onSuccess }: CreateAssis
                       'disabled:opacity-50 disabled:cursor-not-allowed'
                     )}
                   >
-                    {creating ? 'Creating...' : 'Create Assistant'}
+                    {creating
+                      ? (editAssistant ? 'Updating...' : 'Creating...')
+                      : (editAssistant ? 'Update Assistant' : 'Create Assistant')}
                   </button>
                 </div>
               </form>

@@ -8,21 +8,37 @@ export async function callOpenAI(assistant: any, userMessage: string): Promise<s
     throw new Error('OpenAI API key not configured');
   }
 
+  // Determine if this model uses max_completion_tokens (reasoning models) or max_tokens
+  const modelName = assistant.model_name.toLowerCase();
+  const usesMaxCompletionTokens =
+    modelName.includes('o1') ||
+    modelName.includes('o3') ||
+    modelName === 'gpt-5.1' ||
+    modelName.includes('thinking');
+
+  const requestBody: any = {
+    model: assistant.model_name,
+    messages: [
+      { role: 'system', content: assistant.system_prompt },
+      { role: 'user', content: userMessage },
+    ],
+    temperature: assistant.temperature,
+  };
+
+  // Use the appropriate token parameter based on the model
+  if (usesMaxCompletionTokens) {
+    requestBody.max_completion_tokens = assistant.max_tokens;
+  } else {
+    requestBody.max_tokens = assistant.max_tokens;
+  }
+
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model: assistant.model_name,
-      messages: [
-        { role: 'system', content: assistant.system_prompt },
-        { role: 'user', content: userMessage },
-      ],
-      temperature: assistant.temperature,
-      max_tokens: assistant.max_tokens,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {

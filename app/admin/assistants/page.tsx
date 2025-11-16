@@ -10,6 +10,9 @@ interface Assistant {
   workspace_id: string;
   workspace_name?: string;
   model: string;
+  model_provider: 'openai' | 'anthropic' | 'google';
+  model_name: string;
+  system_prompt: string;
   temperature: number;
   max_tokens: number;
   created_at: string;
@@ -19,6 +22,7 @@ export default function AdminAssistants() {
   const [assistants, setAssistants] = useState<Assistant[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingAssistant, setEditingAssistant] = useState<Assistant | undefined>(undefined);
 
   useEffect(() => {
     loadAssistants();
@@ -41,7 +45,18 @@ export default function AdminAssistants() {
 
   const handleAssistantCreated = () => {
     setShowCreateModal(false);
+    setEditingAssistant(undefined);
     loadAssistants();
+  };
+
+  const handleEdit = (assistant: Assistant) => {
+    setEditingAssistant(assistant);
+    setShowCreateModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowCreateModal(false);
+    setEditingAssistant(undefined);
   };
 
   return (
@@ -86,13 +101,16 @@ export default function AdminAssistants() {
               <th className="text-left px-6 py-3 text-xs font-medium text-foreground-secondary uppercase tracking-wider">
                 Created
               </th>
+              <th className="text-right px-6 py-3 text-xs font-medium text-foreground-secondary uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {loading ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="px-6 py-8 text-center text-sm text-foreground-tertiary"
                 >
                   Loading assistants...
@@ -101,7 +119,7 @@ export default function AdminAssistants() {
             ) : assistants.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="px-6 py-8 text-center text-sm text-foreground-tertiary"
                 >
                   No assistants found. Create your first assistant to get started.
@@ -133,6 +151,14 @@ export default function AdminAssistants() {
                   <td className="px-6 py-4 text-sm text-foreground-secondary">
                     {new Date(assistant.created_at).toLocaleDateString()}
                   </td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      onClick={() => handleEdit(assistant)}
+                      className="px-4 py-2 text-sm bg-accent/10 text-accent hover:bg-accent/20 rounded font-medium transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
@@ -140,11 +166,12 @@ export default function AdminAssistants() {
         </table>
       </div>
 
-      {/* Create Assistant Modal */}
+      {/* Create/Edit Assistant Modal */}
       <CreateAssistantModal
         isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={handleCloseModal}
         onSuccess={handleAssistantCreated}
+        editAssistant={editingAssistant}
       />
     </div>
   );

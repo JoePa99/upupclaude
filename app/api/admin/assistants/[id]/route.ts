@@ -6,6 +6,80 @@ import { checkSuperAdmin } from '@/lib/admin';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient();
+
+  // Check authentication
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Check superadmin access
+  try {
+    checkSuperAdmin(user.email);
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Forbidden: Superadmin access required' },
+      { status: 403 }
+    );
+  }
+
+  const adminClient = createAdminClient();
+  const { id: assistantId } = await params;
+
+  try {
+    const body = await request.json();
+    const { name, role, systemPrompt, modelProvider, modelName, temperature, maxTokens } = body;
+
+    if (!name || !role || !systemPrompt || !modelProvider || !modelName) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    const updateData = {
+      name: name.trim(),
+      role: role.trim(),
+      system_prompt: systemPrompt.trim(),
+      model_provider: modelProvider,
+      model_name: modelName,
+      temperature: temperature ?? 0.7,
+      max_tokens: maxTokens ?? 4000,
+    };
+
+    const { data: assistant, error: updateError } = await adminClient
+      .from('assistants')
+      .update(updateData)
+      .eq('id', assistantId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ [ADMIN] Error updating assistant:', updateError);
+      return NextResponse.json(
+        { error: updateError.message || 'Failed to update assistant' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, assistant });
+  } catch (error: any) {
+    console.error('❌ [ADMIN] Error updating assistant:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to update assistant' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
