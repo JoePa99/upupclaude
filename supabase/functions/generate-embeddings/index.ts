@@ -132,7 +132,6 @@ serve(async (req) => {
           content: chunk.content,
           embedding: embedding,
           source_type: documentType,
-          source_id: documentId,
           metadata: {
             source: fileName,
             document_id: documentId,
