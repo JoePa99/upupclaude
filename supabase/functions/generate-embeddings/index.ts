@@ -178,7 +178,7 @@ serve(async (req) => {
           : 'playbook_documents';
 
     console.log('  ✓ Updating document status to ready in', tableName, '...');
-    const { error: updateError } = await supabase
+    const { data: updateData, error: updateError } = await supabase
       .from(tableName)
       .update({
         status: 'ready',
@@ -189,11 +189,16 @@ serve(async (req) => {
           embedding_count: embeddingRecords.length,
         },
       })
-      .eq('id', documentId);
+      .eq('id', documentId)
+      .select();
 
     if (updateError) {
-      console.error('  ⚠️  Failed to update document status:', updateError.message);
+      console.error('  ❌ Failed to update document status:', updateError);
+      console.error('  Document ID was:', documentId);
+      console.error('  Table was:', tableName);
       // Don't throw - embeddings were created successfully
+    } else {
+      console.log('  ✅ Document status updated successfully:', updateData);
     }
 
     console.log('✅ [GENERATE-EMBEDDINGS] Completed successfully');
