@@ -44,6 +44,9 @@ export function transformAssistant(dbAssistant: any): Assistant {
     },
     avatar: dbAssistant.avatar_url,
     status: dbAssistant.status || 'offline',
+    enable_image_generation: dbAssistant.enable_image_generation || false,
+    enable_web_search: dbAssistant.enable_web_search || false,
+    enable_deep_research: dbAssistant.enable_deep_research || false,
   };
 }
 
