@@ -260,7 +260,7 @@ async function callGoogle(assistant: any, conversationHistory: Array<{ role: str
   return data.candidates[0].content.parts[0].text;
 }
 
-async function generateImage(prompt: string): Promise<string> {
+async function generateImage(prompt: string, supabaseClient: any): Promise<string> {
   const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
   if (!apiKey) {
     throw new Error('Google AI API key not configured');
@@ -300,10 +300,43 @@ async function generateImage(prompt: string): Promise<string> {
   if (data.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
     const imageData = data.candidates[0].content.parts[0].inlineData;
     const base64Image = imageData.data;
-    const mimeType = imageData.mimeType || 'image/jpeg';
+    const mimeType = imageData.mimeType || 'image/png';
 
-    console.log('✓ [IMAGE] Image generated successfully');
-    return `![Generated Image](data:${mimeType};base64,${base64Image})`;
+    console.log('✓ [IMAGE] Image generated, uploading to storage...');
+
+    // Convert base64 to binary
+    const binaryString = atob(base64Image);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(7);
+    const filename = `generated-images/${timestamp}-${randomId}.png`;
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+      .from('generated-images')
+      .upload(filename, bytes, {
+        contentType: mimeType,
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error('❌ [IMAGE] Upload error:', uploadError);
+      throw new Error(`Failed to upload image: ${uploadError.message}`);
+    }
+
+    // Get public URL
+    const { data: urlData } = supabaseClient.storage
+      .from('generated-images')
+      .getPublicUrl(filename);
+
+    console.log('✓ [IMAGE] Image uploaded successfully:', urlData.publicUrl);
+    return `![Generated Image](${urlData.publicUrl})`;
   }
 
   throw new Error('No image data in response');
@@ -363,7 +396,7 @@ serve(async (req) => {
     // Handle image generation command
     if (command === 'image') {
       console.log('🎨 [AI-RESPOND] Image generation command detected');
-      aiResponse = await generateImage(userMessage);
+      aiResponse = await generateImage(userMessage, supabaseClient);
     } else {
       // Standard text response flow
       // Fetch conversation history
