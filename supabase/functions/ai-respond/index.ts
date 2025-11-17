@@ -195,8 +195,16 @@ async function callOpenAI(assistant: any, conversationHistory: Array<{ role: str
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`OpenAI API error: ${error.error?.message || 'Unknown error'}`);
+    let errorMessage = `HTTP ${response.status}`;
+    try {
+      const error = await response.json();
+      errorMessage = error.error?.message || errorMessage;
+    } catch {
+      // If JSON parsing fails, use status text or response body
+      const text = await response.text();
+      errorMessage = text.substring(0, 200) || response.statusText || errorMessage;
+    }
+    throw new Error(`OpenAI API error: ${errorMessage}`);
   }
 
   const data = await response.json();
@@ -303,8 +311,16 @@ async function callAnthropic(assistant: any, conversationHistory: Array<{ role: 
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Anthropic API error: ${error.error?.message || 'Unknown error'}`);
+    let errorMessage = `HTTP ${response.status}`;
+    try {
+      const error = await response.json();
+      errorMessage = error.error?.message || errorMessage;
+    } catch {
+      // If JSON parsing fails, use status text or response body
+      const text = await response.text();
+      errorMessage = text.substring(0, 200) || response.statusText || errorMessage;
+    }
+    throw new Error(`Anthropic API error: ${errorMessage}`);
   }
 
   const data = await response.json();
@@ -346,8 +362,16 @@ async function callGoogle(assistant: any, conversationHistory: Array<{ role: str
   );
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Google AI API error: ${error.error?.message || 'Unknown error'}`);
+    let errorMessage = `HTTP ${response.status}`;
+    try {
+      const error = await response.json();
+      errorMessage = error.error?.message || errorMessage;
+    } catch {
+      // If JSON parsing fails, use status text or response body
+      const text = await response.text();
+      errorMessage = text.substring(0, 200) || response.statusText || errorMessage;
+    }
+    throw new Error(`Google AI API error: ${errorMessage}`);
   }
 
   const data = await response.json();
@@ -599,21 +623,23 @@ serve(async (req) => {
       aiResponse = await generateImage(userMessage, supabaseClient);
     } else {
       // Standard text response flow
-      // Fetch conversation history (reduced for cost control)
-      const conversationHistory = await fetchConversationHistory(
-        supabaseClient,
-        channelId,
-        assistantId,
-        15 // Last 15 messages (reduced from 20 for cost control)
-      );
-
-      // Retrieve relevant context from CompanyOS (reduced for cost control)
-      const contextChunks = await retrieveContext(
-        supabaseClient,
-        assistant.workspace_id,
-        userMessage,
-        3 // Top 3 most relevant chunks (reduced from 5 for cost control)
-      );
+      // Fetch conversation history and context in parallel (they don't depend on each other)
+      let perfStart = Date.now();
+      const [conversationHistory, contextChunks] = await Promise.all([
+        fetchConversationHistory(
+          supabaseClient,
+          channelId,
+          assistantId,
+          15 // Last 15 messages (reduced from 20 for cost control)
+        ),
+        retrieveContext(
+          supabaseClient,
+          assistant.workspace_id,
+          userMessage,
+          3 // Top 3 most relevant chunks (reduced from 5 for cost control)
+        ),
+      ]);
+      console.log(`⏱️ [PERF] History + Context (parallel): ${Date.now() - perfStart}ms`);
 
       // Build contextual system prompt
       const systemPrompt = buildContextualPrompt(
@@ -625,6 +651,7 @@ serve(async (req) => {
 
       // Call the appropriate AI provider with conversation history and context
       console.log('🔄 [AI-RESPOND] Calling', assistant.model_provider, 'API with context and history...');
+      perfStart = Date.now();
 
       if (assistant.model_provider === 'openai') {
         aiResponse = await callOpenAI(assistant, conversationHistory, systemPrompt);
@@ -636,6 +663,7 @@ serve(async (req) => {
         throw new Error(`Unsupported AI provider: ${assistant.model_provider}`);
       }
 
+      console.log(`⏱️ [PERF] ${assistant.model_provider.toUpperCase()} API call: ${Date.now() - perfStart}ms`);
       console.log('✓ [AI-RESPOND] AI response generated:', aiResponse.substring(0, 100) + '...');
     }
 
