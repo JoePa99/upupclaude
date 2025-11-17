@@ -115,7 +115,7 @@ export async function POST(request: Request) {
           // Fetch assistant info for the response
           const { data: assistant } = await (supabase
             .from('assistants') as any)
-            .select('id, name, email, avatar_url, role')
+            .select('id, name, avatar_url, role')
             .eq('id', aiMessage.author_id)
             .single();
 
