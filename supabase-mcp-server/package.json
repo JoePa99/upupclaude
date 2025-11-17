@@ -1,0 +1,37 @@
+{
+  "name": "@supabase/mcp-server",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for Supabase - query databases, deploy functions, stream logs, and manage projects",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "supabase-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "supabase",
+    "database",
+    "edge-functions",
+    "postgres",
+    "model-context-protocol"
+  ],
+  "author": "Supabase Community",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

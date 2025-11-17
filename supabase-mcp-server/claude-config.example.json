@@ -1,0 +1,25 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schema/config.json",
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": ["-y", "@supabase/mcp-server"],
+      "env": {
+        "SUPABASE_PROJECT_REF": "your-project-ref-here",
+        "SUPABASE_ACCESS_TOKEN": "sbp_your_access_token_here",
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJ_your_service_role_key_here",
+        "SUPABASE_READ_ONLY": "false"
+      }
+    },
+    "supabase-readonly": {
+      "command": "npx",
+      "args": ["-y", "@supabase/mcp-server"],
+      "env": {
+        "SUPABASE_PROJECT_REF": "your-project-ref-here",
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJ_your_service_role_key_here",
+        "SUPABASE_READ_ONLY": "true"
+      },
+      "description": "Read-only mode for safe inspection and debugging"
+    }
+  }
+}
