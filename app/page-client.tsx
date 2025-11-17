@@ -7,6 +7,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { ChannelHeader } from '@/components/ChannelHeader';
 import { Message } from '@/components/Message';
 import { ChatInput } from '@/components/ChatInput';
+import { EditChannelModal } from '@/components/EditChannelModal';
 import type { Channel, Message as MessageType, Workspace } from '@/types';
 
 interface PageClientProps {
@@ -27,6 +28,7 @@ export function PageClient({
   const [messages, setMessages] = useState<MessageType[]>(initialMessages);
   const [sending, setSending] = useState(false);
   const [typingAssistants, setTypingAssistants] = useState<string[]>([]);
+  const [showEditChannel, setShowEditChannel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -107,6 +109,79 @@ export function PageClient({
         ...currentChannel,
         assistants: transformedAssistants,
       });
+    }
+  };
+
+  // Handle channel creation
+  const handleChannelCreated = async () => {
+    // Refresh channels list
+    const { data: channels } = await (supabase
+      .from('channels') as any)
+      .select('*')
+      .eq('workspace_id', workspace.id)
+      .order('created_at', { ascending: true });
+
+    if (channels) {
+      const { transformChannels } = await import('@/lib/transformers');
+      const transformedChannels = transformChannels(channels);
+
+      setWorkspace({
+        ...workspace,
+        channels: transformedChannels,
+      });
+    }
+  };
+
+  // Handle channel update
+  const handleEditChannel = () => {
+    setShowEditChannel(true);
+  };
+
+  const handleChannelUpdated = async () => {
+    // Refresh the channel data
+    await handleChannelCreated();
+
+    // Also refresh the current channel
+    const { data: updatedChannel } = await (supabase
+      .from('channels') as any)
+      .select('*')
+      .eq('id', currentChannel.id)
+      .single();
+
+    if (updatedChannel) {
+      const { transformChannels } = await import('@/lib/transformers');
+      const [transformed] = transformChannels([updatedChannel]);
+      setCurrentChannel(transformed);
+    }
+  };
+
+  // Handle channel deletion
+  const handleDeleteChannel = async () => {
+    if (!confirm('Are you sure you want to delete this channel? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/channels/${currentChannel.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete channel');
+      }
+
+      // Refresh channels list
+      await handleChannelCreated();
+
+      // Navigate to the first available channel
+      const firstChannel = workspace.channels.find(c => c.id !== currentChannel.id);
+      if (firstChannel) {
+        setCurrentChannel(firstChannel);
+      }
+    } catch (error: any) {
+      console.error('Error deleting channel:', error);
+      alert(error.message || 'Failed to delete channel');
     }
   };
 
@@ -292,10 +367,16 @@ export function PageClient({
         currentUser={currentUser}
         onChannelSelect={setCurrentChannel}
         onAssistantCreated={handleAssistantCreated}
+        onChannelCreated={handleChannelCreated}
       />
 
       <div className="flex-1 flex flex-col relative z-10">
-        <ChannelHeader channel={currentChannel} onClearHistory={handleClearHistory} />
+        <ChannelHeader
+          channel={currentChannel}
+          onClearHistory={handleClearHistory}
+          onEditChannel={handleEditChannel}
+          onDeleteChannel={handleDeleteChannel}
+        />
 
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-5xl mx-auto">
@@ -366,6 +447,14 @@ export function PageClient({
           onSendMessage={handleSendMessage}
         />
       </div>
+
+      {/* Edit Channel Modal */}
+      <EditChannelModal
+        isOpen={showEditChannel}
+        onClose={() => setShowEditChannel(false)}
+        onSuccess={handleChannelUpdated}
+        channel={currentChannel}
+      />
     </div>
   );
 }

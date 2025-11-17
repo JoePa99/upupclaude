@@ -5,6 +5,7 @@ import { Channel, Assistant, Workspace, User } from '@/types';
 import { cn, getInitials } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { CreateAssistantModal } from './CreateAssistantModal';
+import { CreateChannelModal } from './CreateChannelModal';
 
 interface SidebarProps {
   workspace: Workspace;
@@ -12,6 +13,7 @@ interface SidebarProps {
   currentUser: User;
   onChannelSelect: (channel: Channel) => void;
   onAssistantCreated: () => void;
+  onChannelCreated: () => void;
 }
 
 export function Sidebar({
@@ -20,8 +22,10 @@ export function Sidebar({
   currentUser,
   onChannelSelect,
   onAssistantCreated,
+  onChannelCreated,
 }: SidebarProps) {
   const [showCreateAssistant, setShowCreateAssistant] = useState(false);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [loadingDM, setLoadingDM] = useState<string | null>(null);
 
   const handleAssistantClick = async (assistant: Assistant) => {
@@ -71,7 +75,10 @@ export function Sidebar({
             <h2 className="text-xs font-semibold text-foreground-tertiary uppercase tracking-wide">
               Channels
             </h2>
-            <button className="text-accent hover:text-accent-hover transition-colors text-sm">
+            <button
+              onClick={() => setShowCreateChannel(true)}
+              className="text-accent hover:text-accent-hover transition-colors text-sm"
+            >
               +
             </button>
           </div>
@@ -178,6 +185,15 @@ export function Sidebar({
         isOpen={showCreateAssistant}
         onClose={() => setShowCreateAssistant(false)}
         onSuccess={onAssistantCreated}
+      />
+
+      {/* Create Channel Modal */}
+      <CreateChannelModal
+        isOpen={showCreateChannel}
+        onClose={() => setShowCreateChannel(false)}
+        onSuccess={onChannelCreated}
+        workspaceUsers={workspace.users}
+        workspaceAssistants={workspace.assistants}
       />
     </motion.div>
   );

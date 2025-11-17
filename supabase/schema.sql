@@ -57,6 +57,8 @@ create table channels (
   name text not null,
   description text,
   is_private boolean default false,
+  is_dm boolean default false,
+  dm_assistant_id uuid references assistants(id),
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   created_by uuid references users(id)
@@ -224,6 +226,72 @@ create policy "Users can view channels in their workspace"
   on channels for select
   using (workspace_id in (
     select workspace_id from users where id = auth.uid()
+  ));
+
+create policy "Users can create channels in their workspace"
+  on channels for insert
+  with check (workspace_id in (
+    select workspace_id from users where id = auth.uid()
+  ));
+
+create policy "Users can update channels in their workspace"
+  on channels for update
+  using (workspace_id in (
+    select workspace_id from users where id = auth.uid()
+  ));
+
+create policy "Users can delete channels in their workspace"
+  on channels for delete
+  using (workspace_id in (
+    select workspace_id from users where id = auth.uid()
+  ));
+
+create policy "Users can view channel members"
+  on channel_members for select
+  using (channel_id in (
+    select id from channels where workspace_id in (
+      select workspace_id from users where id = auth.uid()
+    )
+  ));
+
+create policy "Users can add channel members"
+  on channel_members for insert
+  with check (channel_id in (
+    select id from channels where workspace_id in (
+      select workspace_id from users where id = auth.uid()
+    )
+  ));
+
+create policy "Users can remove channel members"
+  on channel_members for delete
+  using (channel_id in (
+    select id from channels where workspace_id in (
+      select workspace_id from users where id = auth.uid()
+    )
+  ));
+
+create policy "Users can view channel assistants"
+  on channel_assistants for select
+  using (channel_id in (
+    select id from channels where workspace_id in (
+      select workspace_id from users where id = auth.uid()
+    )
+  ));
+
+create policy "Users can add channel assistants"
+  on channel_assistants for insert
+  with check (channel_id in (
+    select id from channels where workspace_id in (
+      select workspace_id from users where id = auth.uid()
+    )
+  ));
+
+create policy "Users can remove channel assistants"
+  on channel_assistants for delete
+  using (channel_id in (
+    select id from channels where workspace_id in (
+      select workspace_id from users where id = auth.uid()
+    )
   ));
 
 create policy "Users can view messages in their channels"
