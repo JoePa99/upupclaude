@@ -182,8 +182,7 @@ async function callOpenAI(assistant: any, conversationHistory: Array<{ role: str
         { role: 'system', content: systemPrompt },
         ...conversationHistory,
       ],
-      temperature: assistant.temperature,
-      max_tokens: assistant.max_tokens,
+      // Let OpenAI use optimal defaults for temperature and max_tokens
     }),
   });
 
@@ -213,8 +212,7 @@ async function callAnthropic(assistant: any, conversationHistory: Array<{ role: 
       model: assistant.model_name,
       system: systemPrompt,
       messages: conversationHistory,
-      temperature: assistant.temperature,
-      max_tokens: assistant.max_tokens,
+      max_tokens: 8192, // Anthropic requires max_tokens, using generous default
     }),
   });
 
@@ -248,10 +246,7 @@ async function callGoogle(assistant: any, conversationHistory: Array<{ role: str
       },
       body: JSON.stringify({
         contents,
-        generationConfig: {
-          temperature: assistant.temperature,
-          maxOutputTokens: assistant.max_tokens,
-        },
+        // Let Google use optimal defaults for temperature and maxOutputTokens
       }),
     }
   );
@@ -346,7 +341,7 @@ serve(async (req) => {
     // Fetch assistant details
     const { data: assistant, error: assistantError } = await supabaseClient
       .from('assistants')
-      .select('id, workspace_id, name, role, system_prompt, model_provider, model_name, temperature, max_tokens, avatar_url, status')
+      .select('id, workspace_id, name, role, system_prompt, model_provider, model_name, avatar_url, status')
       .eq('id', assistantId)
       .single();
 
