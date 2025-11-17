@@ -135,18 +135,20 @@ export function Message({ message, index }: MessageProps) {
             {isAI ? (
               <>
                 {(() => {
-                  // Check if message contains image markdown
-                  const imageMatch = message.content.match(/!\[Generated Image\]\((data:image\/[^)]+)\)/);
+                  // Check if message contains image markdown (base64 or URL)
+                  const imageMatch = message.content.match(/!\[Generated Image\]\(([^)]+)\)/);
                   if (imageMatch) {
-                    const base64Src = imageMatch[1];
+                    const imageSrc = imageMatch[1];
+                    const isBase64 = imageSrc.startsWith('data:image');
                     console.log('📝 [MESSAGE] Found image in markdown:', {
-                      srcLength: base64Src.length,
-                      srcPreview: base64Src.substring(0, 100),
+                      isBase64,
+                      srcLength: imageSrc.length,
+                      srcPreview: imageSrc.substring(0, 100),
                     });
                     // Render image directly instead of through markdown
                     return (
                       <img
-                        src={base64Src}
+                        src={imageSrc}
                         alt="Generated Image"
                         className="rounded-lg max-w-full h-auto my-4 border border-border shadow-sm"
                         onLoad={() => {
@@ -154,8 +156,8 @@ export function Message({ message, index }: MessageProps) {
                         }}
                         onError={(e) => {
                           console.error('❌ [DIRECT IMG] Image failed to load:', {
-                            srcLength: base64Src.length,
-                            srcPreview: base64Src.substring(0, 100),
+                            srcLength: imageSrc.length,
+                            srcPreview: imageSrc.substring(0, 100),
                             error: e,
                           });
                         }}
