@@ -420,7 +420,13 @@ Focus on delivering factual, up-to-date information with proper context.`;
   }
 
   // Prepare messages with conversation context (only last 3 turns to keep it focused)
-  const contextMessages = alternatingHistory.slice(-6); // Last 3 user-assistant pairs
+  let contextMessages = alternatingHistory.slice(-6); // Last 3 user-assistant pairs
+
+  // CRITICAL: Ensure context ends with 'assistant' message, not 'user'
+  // Otherwise we'll have consecutive user messages when we add the query
+  if (contextMessages.length > 0 && contextMessages[contextMessages.length - 1].role === 'user') {
+    contextMessages = contextMessages.slice(0, -1); // Remove last user message
+  }
   const messages = [
     { role: 'system', content: researchSystemPrompt },
     ...contextMessages,
