@@ -599,7 +599,7 @@ serve(async (req) => {
     } else {
       // Standard text response flow
       // Fetch conversation history and context in parallel (they don't depend on each other)
-      const perfStart = Date.now();
+      let perfStart = Date.now();
       const [conversationHistory, contextChunks] = await Promise.all([
         fetchConversationHistory(
           supabaseClient,
