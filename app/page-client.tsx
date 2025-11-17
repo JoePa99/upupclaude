@@ -195,12 +195,12 @@ export function PageClient({
     (m) => m.channelId === currentChannel.id
   );
 
-  const handleSendMessage = async (content: string, mentions: string[]) => {
+  const handleSendMessage = async (content: string, mentions: string[], command?: string) => {
     if (sending) return;
 
     setSending(true);
     try {
-      console.log('Sending message:', { channelId: currentChannel.id, content, mentions });
+      console.log('Sending message:', { channelId: currentChannel.id, content, mentions, command });
 
       // Add typing indicators for mentioned assistants
       if (mentions && mentions.length > 0) {
@@ -216,6 +216,7 @@ export function PageClient({
           channelId: currentChannel.id,
           content,
           mentions,
+          command,
         }),
       });
 

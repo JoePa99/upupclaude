@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { channelId, content, mentions } = await request.json();
+    const { channelId, content, mentions, command } = await request.json();
 
     if (!channelId || !content?.trim()) {
       return NextResponse.json(
@@ -86,6 +86,7 @@ export async function POST(request: Request) {
                 assistantId,
                 channelId,
                 userMessage: content,
+                command,
               },
             });
 

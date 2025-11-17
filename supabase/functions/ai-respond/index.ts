@@ -11,6 +11,7 @@ interface AIRespondRequest {
   assistantId: string;
   channelId: string;
   userMessage: string;
+  command?: string;
 }
 
 interface ContextChunk {
@@ -264,6 +265,55 @@ async function callGoogle(assistant: any, conversationHistory: Array<{ role: str
   return data.candidates[0].content.parts[0].text;
 }
 
+async function generateImage(prompt: string): Promise<string> {
+  const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
+  if (!apiKey) {
+    throw new Error('Google AI API key not configured');
+  }
+
+  console.log('🎨 [IMAGE] Generating image with prompt:', prompt);
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `Generate an image: ${prompt}`,
+          }],
+        }],
+        generationConfig: {
+          temperature: 1.0,
+          responseModalities: ['image'],
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Google AI Image API error: ${error.error?.message || 'Unknown error'}`);
+  }
+
+  const data = await response.json();
+
+  // Extract image data from response
+  if (data.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+    const imageData = data.candidates[0].content.parts[0].inlineData;
+    const base64Image = imageData.data;
+    const mimeType = imageData.mimeType || 'image/jpeg';
+
+    console.log('✓ [IMAGE] Image generated successfully');
+    return `![Generated Image](data:${mimeType};base64,${base64Image})`;
+  }
+
+  throw new Error('No image data in response');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -279,7 +329,7 @@ serve(async (req) => {
     );
 
     const requestBody: AIRespondRequest = await req.json();
-    const { assistantId, channelId, userMessage } = requestBody;
+    const { assistantId, channelId, userMessage, command } = requestBody;
 
     if (!assistantId || !channelId || !userMessage) {
       return new Response(JSON.stringify({
@@ -291,7 +341,7 @@ serve(async (req) => {
       });
     }
 
-    console.log('🤖 [AI-RESPOND] Processing AI response for assistant:', assistantId);
+    console.log('🤖 [AI-RESPOND] Processing AI response for assistant:', assistantId, command ? `with command: ${command}` : '');
 
     // Fetch assistant details
     const { data: assistant, error: assistantError } = await supabaseClient
@@ -313,45 +363,53 @@ serve(async (req) => {
 
     console.log('✓ [AI-RESPOND] Assistant found:', assistant.name, 'Provider:', assistant.model_provider);
 
-    // Fetch conversation history
-    const conversationHistory = await fetchConversationHistory(
-      supabaseClient,
-      channelId,
-      assistantId,
-      20 // Last 20 messages
-    );
-
-    // Retrieve relevant context from CompanyOS
-    const contextChunks = await retrieveContext(
-      supabaseClient,
-      assistant.workspace_id,
-      userMessage,
-      5 // Top 5 most relevant chunks
-    );
-
-    // Build contextual system prompt
-    const systemPrompt = buildContextualPrompt(
-      assistant.system_prompt,
-      assistant.name,
-      assistant.role,
-      contextChunks
-    );
-
-    // Call the appropriate AI provider with conversation history and context
-    console.log('🔄 [AI-RESPOND] Calling', assistant.model_provider, 'API with context and history...');
     let aiResponse: string;
 
-    if (assistant.model_provider === 'openai') {
-      aiResponse = await callOpenAI(assistant, conversationHistory, systemPrompt);
-    } else if (assistant.model_provider === 'anthropic') {
-      aiResponse = await callAnthropic(assistant, conversationHistory, systemPrompt);
-    } else if (assistant.model_provider === 'google') {
-      aiResponse = await callGoogle(assistant, conversationHistory, systemPrompt);
+    // Handle image generation command
+    if (command === 'image') {
+      console.log('🎨 [AI-RESPOND] Image generation command detected');
+      aiResponse = await generateImage(userMessage);
     } else {
-      throw new Error(`Unsupported AI provider: ${assistant.model_provider}`);
-    }
+      // Standard text response flow
+      // Fetch conversation history
+      const conversationHistory = await fetchConversationHistory(
+        supabaseClient,
+        channelId,
+        assistantId,
+        20 // Last 20 messages
+      );
 
-    console.log('✓ [AI-RESPOND] AI response generated:', aiResponse.substring(0, 100) + '...');
+      // Retrieve relevant context from CompanyOS
+      const contextChunks = await retrieveContext(
+        supabaseClient,
+        assistant.workspace_id,
+        userMessage,
+        5 // Top 5 most relevant chunks
+      );
+
+      // Build contextual system prompt
+      const systemPrompt = buildContextualPrompt(
+        assistant.system_prompt,
+        assistant.name,
+        assistant.role,
+        contextChunks
+      );
+
+      // Call the appropriate AI provider with conversation history and context
+      console.log('🔄 [AI-RESPOND] Calling', assistant.model_provider, 'API with context and history...');
+
+      if (assistant.model_provider === 'openai') {
+        aiResponse = await callOpenAI(assistant, conversationHistory, systemPrompt);
+      } else if (assistant.model_provider === 'anthropic') {
+        aiResponse = await callAnthropic(assistant, conversationHistory, systemPrompt);
+      } else if (assistant.model_provider === 'google') {
+        aiResponse = await callGoogle(assistant, conversationHistory, systemPrompt);
+      } else {
+        throw new Error(`Unsupported AI provider: ${assistant.model_provider}`);
+      }
+
+      console.log('✓ [AI-RESPOND] AI response generated:', aiResponse.substring(0, 100) + '...');
+    }
 
     // Insert AI response as a message
     const { data: responseMessage, error: messageError } = await supabaseClient
