@@ -195,11 +195,67 @@ async function callOpenAI(assistant: any, conversationHistory: Array<{ role: str
   return data.choices[0].message.content;
 }
 
+/**
+ * Estimate token count for text (rough approximation: ~4 chars per token)
+ */
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Truncate conversation history to fit within token limit
+ */
+function truncateConversationHistory(
+  conversationHistory: Array<{ role: string; content: string }>,
+  systemPrompt: string,
+  maxTokens: number = 200000
+): Array<{ role: string; content: string }> {
+  const maxOutputTokens = 8192;
+  const safetyBuffer = 1000; // Extra buffer for API overhead
+  const availableTokens = maxTokens - maxOutputTokens - safetyBuffer;
+
+  // Count system prompt tokens
+  const systemTokens = estimateTokens(systemPrompt);
+  let remainingTokens = availableTokens - systemTokens;
+
+  console.log(`🔍 [TOKEN-LIMIT] System prompt: ${systemTokens} tokens, Available for history: ${remainingTokens} tokens`);
+
+  // If system prompt alone is too large, we have a problem
+  if (remainingTokens <= 0) {
+    console.warn('⚠️ [TOKEN-LIMIT] System prompt exceeds token limit, truncating severely');
+    return conversationHistory.slice(-2); // Keep only last 2 messages
+  }
+
+  // Truncate history from the beginning (keep most recent messages)
+  const truncated: Array<{ role: string; content: string }> = [];
+  let currentTokens = 0;
+
+  // Process messages in reverse (most recent first)
+  for (let i = conversationHistory.length - 1; i >= 0; i--) {
+    const message = conversationHistory[i];
+    const messageTokens = estimateTokens(message.content);
+
+    if (currentTokens + messageTokens <= remainingTokens) {
+      truncated.unshift(message); // Add to beginning to maintain order
+      currentTokens += messageTokens;
+    } else {
+      console.log(`✂️ [TOKEN-LIMIT] Truncated ${conversationHistory.length - truncated.length} older messages`);
+      break;
+    }
+  }
+
+  console.log(`✓ [TOKEN-LIMIT] Kept ${truncated.length}/${conversationHistory.length} messages (~${currentTokens} tokens)`);
+  return truncated;
+}
+
 async function callAnthropic(assistant: any, conversationHistory: Array<{ role: string; content: string }>, systemPrompt: string): Promise<string> {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) {
     throw new Error('Anthropic API key not configured');
   }
+
+  // Truncate conversation history to fit within Anthropic's 200k token limit
+  const truncatedHistory = truncateConversationHistory(conversationHistory, systemPrompt, 200000);
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -211,7 +267,7 @@ async function callAnthropic(assistant: any, conversationHistory: Array<{ role: 
     body: JSON.stringify({
       model: assistant.model_name,
       system: systemPrompt,
-      messages: conversationHistory,
+      messages: truncatedHistory,
       max_tokens: 8192, // Anthropic requires max_tokens, using generous default
     }),
   });
