@@ -17,21 +17,25 @@ interface CommandOption {
   label: string;
   description: string;
   icon: string;
+  assistants: Array<{ id: string; name: string }>; // Track all assistants that can handle this command
 }
 
 export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSendMessage }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [showMentions, setShowMentions] = useState(false);
   const [showCommands, setShowCommands] = useState(false);
+  const [showAgentSelector, setShowAgentSelector] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedCommand, setSelectedCommand] = useState<SlashCommand | undefined>();
+  const [selectedCommandOption, setSelectedCommandOption] = useState<CommandOption | undefined>();
+  const [selectedAgent, setSelectedAgent] = useState<{ id: string; name: string } | undefined>();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Get available commands based on assistants' capabilities
   const availableCommands: CommandOption[] = [];
   const commandToAssistantMap: Record<SlashCommand, string> = {} as any;
 
-  // Helper to add command if not already added
+  // Helper to add command and accumulate assistants that can handle it
   const addCommand = (
     cmd: SlashCommand,
     label: string,
@@ -40,9 +44,20 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
     assistantId: string,
     assistantName: string
   ) => {
-    if (!availableCommands.find(c => c.command === cmd)) {
-      availableCommands.push({ command: cmd, label, description, icon });
-      commandToAssistantMap[cmd] = assistantId;
+    const existingCommand = availableCommands.find(c => c.command === cmd);
+    if (existingCommand) {
+      // Command already exists, add this assistant to the list
+      existingCommand.assistants.push({ id: assistantId, name: assistantName });
+    } else {
+      // New command, create it with this assistant
+      availableCommands.push({
+        command: cmd,
+        label,
+        description,
+        icon,
+        assistants: [{ id: assistantId, name: assistantName }]
+      });
+      commandToAssistantMap[cmd] = assistantId; // Keep for backward compatibility
     }
   };
 
@@ -77,10 +92,10 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
 
   // Reset selected index when dropdown opens
   useEffect(() => {
-    if (showMentions || showCommands) {
+    if (showMentions || showCommands || showAgentSelector) {
       setSelectedIndex(0);
     }
-  }, [showMentions, showCommands]);
+  }, [showMentions, showCommands, showAgentSelector]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Handle keyboard navigation in command dropdown
@@ -104,6 +119,34 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
         e.preventDefault();
         setShowCommands(false);
         setSelectedCommand(undefined);
+        return;
+      }
+    }
+
+    // Handle keyboard navigation in agent selector dropdown
+    if (showAgentSelector && selectedCommandOption) {
+      const availableAgents = selectedCommandOption.assistants;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev + 1) % availableAgents.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev - 1 + availableAgents.length) % availableAgents.length);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        selectAgent(availableAgents[selectedIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowAgentSelector(false);
+        setSelectedCommand(undefined);
+        setSelectedCommandOption(undefined);
+        setSelectedAgent(undefined);
         return;
       }
     }
@@ -154,8 +197,26 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
 
   const selectCommand = (commandOption: CommandOption) => {
     setSelectedCommand(commandOption.command);
+    setSelectedCommandOption(commandOption);
     setMessage('');
     setShowCommands(false);
+
+    // Check if multiple assistants can handle this command
+    if (commandOption.assistants.length > 1) {
+      // Show agent selector
+      setShowAgentSelector(true);
+    } else {
+      // Only one assistant, auto-select it
+      setSelectedAgent(commandOption.assistants[0]);
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 0);
+    }
+  };
+
+  const selectAgent = (agent: { id: string; name: string }) => {
+    setSelectedAgent(agent);
+    setShowAgentSelector(false);
 
     // Show a visual indicator that a command is active
     setTimeout(() => {
@@ -210,12 +271,11 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
         }
       }
 
-      // If a command was selected in regular channel, auto-mention the assistant for that command
-      if (selectedCommand && commandToAssistantMap[selectedCommand]) {
-        const commandAssistantId = commandToAssistantMap[selectedCommand];
-        if (!mentions.includes(commandAssistantId)) {
-          console.log('✓ Auto-mentioning assistant for command:', selectedCommand, commandAssistantId);
-          mentions.push(commandAssistantId);
+      // If a command was selected in regular channel, auto-mention the selected assistant for that command
+      if (selectedCommand && selectedAgent) {
+        if (!mentions.includes(selectedAgent.id)) {
+          console.log('✓ Auto-mentioning assistant for command:', selectedCommand, selectedAgent.id, selectedAgent.name);
+          mentions.push(selectedAgent.id);
         }
       }
     }
@@ -226,7 +286,10 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
     setMessage('');
     setShowMentions(false);
     setShowCommands(false);
+    setShowAgentSelector(false);
     setSelectedCommand(undefined);
+    setSelectedCommandOption(undefined);
+    setSelectedAgent(undefined);
   };
 
   const insertMention = (assistantName: string) => {
@@ -286,6 +349,52 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
           </div>
         )}
 
+        {/* Agent selector dropdown */}
+        {showAgentSelector && selectedCommandOption && (
+          <div className="absolute bottom-full left-0 mb-2 w-80 bg-background-tertiary border border-border rounded-lg shadow-xl overflow-hidden">
+            <div className="p-2 border-b border-border">
+              <p className="text-xs text-foreground-tertiary font-semibold uppercase tracking-wide">
+                Select Assistant for /{selectedCommandOption.command}
+              </p>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {selectedCommandOption.assistants.map((agent, index) => {
+                const assistant = assistants.find(a => a.id === agent.id);
+                return (
+                  <button
+                    key={agent.id}
+                    onClick={() => selectAgent(agent)}
+                    className={cn(
+                      "w-full flex items-start gap-3 px-3 py-2.5 transition-colors text-left",
+                      index === selectedIndex
+                        ? "bg-accent/20 border-l-2 border-accent"
+                        : "hover:bg-background-secondary"
+                    )}
+                  >
+                    <div className="w-8 h-8 rounded bg-ai/20 border border-ai/30 flex items-center justify-center text-ai">
+                      ◆
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-foreground">
+                        {agent.name}
+                      </div>
+                      <div className="text-xs text-foreground-tertiary mt-0.5">
+                        {assistant?.role || 'Assistant'}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="p-2 border-t border-border bg-background-secondary/50">
+              <p className="text-xs text-foreground-tertiary">
+                <kbd className="px-1 py-0.5 bg-background-tertiary rounded border border-border">↑↓</kbd> to navigate ·{' '}
+                <kbd className="px-1 py-0.5 bg-background-tertiary rounded border border-border">⏎</kbd> to select
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Mention dropdown */}
         {showMentions && (
           <div className="absolute bottom-full left-0 mb-2 w-64 bg-background-tertiary border border-border rounded-lg shadow-xl overflow-hidden">
@@ -326,15 +435,21 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
         {/* Input area */}
         <div className="relative">
           {/* Command indicator */}
-          {selectedCommand && (
+          {selectedCommand && selectedAgent && (
             <div className="absolute -top-10 left-0 flex items-center gap-2 bg-accent/10 border border-accent/30 rounded-lg px-3 py-1.5">
               <span className="text-sm font-medium text-accent">
                 {selectedCommand === 'image' && '🎨 Generate Image'}
                 {selectedCommand === 'search' && '🔍 Search The Web'}
                 {selectedCommand === 'research' && '🧠 Conduct Deep Research'}
+                {' via '}
+                <span className="text-foreground">{selectedAgent.name}</span>
               </span>
               <button
-                onClick={() => setSelectedCommand(undefined)}
+                onClick={() => {
+                  setSelectedCommand(undefined);
+                  setSelectedCommandOption(undefined);
+                  setSelectedAgent(undefined);
+                }}
                 className="text-accent hover:text-accent/70 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
