@@ -133,39 +133,38 @@ export function Message({ message, index }: MessageProps) {
             )}
           >
             {isAI ? (
-              <>
-                {(() => {
-                  // Check if message contains image markdown (base64 or URL)
-                  const imageMatch = message.content.match(/!\[Generated Image\]\(([^)]+)\)/);
-                  if (imageMatch) {
-                    const imageSrc = imageMatch[1];
-                    const isBase64 = imageSrc.startsWith('data:image');
-                    console.log('📝 [MESSAGE] Found image in markdown:', {
-                      isBase64,
-                      srcLength: imageSrc.length,
-                      srcPreview: imageSrc.substring(0, 100),
-                    });
-                    // Render image directly instead of through markdown
-                    return (
-                      <img
-                        src={imageSrc}
-                        alt="Generated Image"
-                        className="rounded-lg max-w-full h-auto my-4 border border-border shadow-sm"
-                        onLoad={() => {
-                          console.log('✅ [DIRECT IMG] Image loaded successfully');
-                        }}
-                        onError={(e) => {
-                          console.error('❌ [DIRECT IMG] Image failed to load:', {
-                            srcLength: imageSrc.length,
-                            srcPreview: imageSrc.substring(0, 100),
-                            error: e,
-                          });
-                        }}
-                      />
-                    );
-                  }
-                  return null;
-                })()}
+              (() => {
+                // Check if message contains image markdown (base64 or URL)
+                const imageMatch = message.content.match(/!\[Generated Image\]\(([^)]+)\)/);
+                if (imageMatch) {
+                  const imageSrc = imageMatch[1];
+                  const isBase64 = imageSrc.startsWith('data:image');
+                  console.log('📝 [MESSAGE] Found image in markdown:', {
+                    isBase64,
+                    srcLength: imageSrc.length,
+                    srcPreview: imageSrc.substring(0, 100),
+                  });
+                  // Render image directly - this is the ONLY render for image messages
+                  return (
+                    <img
+                      src={imageSrc}
+                      alt="Generated Image"
+                      className="rounded-lg max-w-full h-auto my-4 border border-border shadow-sm"
+                      onLoad={() => {
+                        console.log('✅ [DIRECT IMG] Image loaded successfully');
+                      }}
+                      onError={(e) => {
+                        console.error('❌ [DIRECT IMG] Image failed to load:', {
+                          srcLength: imageSrc.length,
+                          srcPreview: imageSrc.substring(0, 100),
+                          error: e,
+                        });
+                      }}
+                    />
+                  );
+                }
+                // No image - render markdown normally
+                return (
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
@@ -313,40 +312,17 @@ export function Message({ message, index }: MessageProps) {
                     <hr className="my-6 border-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
                   ),
 
-                  // Images
-                  img: ({ src, alt }) => {
-                    console.log('🖼️ [IMG COMPONENT] Rendering image:', {
-                      srcType: typeof src,
-                      srcLength: typeof src === 'string' ? src.length : 'N/A',
-                      srcPreview: typeof src === 'string' ? src.substring(0, 100) : src,
-                      alt,
-                    });
-                    return (
-                      <img
-                        src={src}
-                        alt={alt || 'Generated Image'}
-                        className="rounded-lg max-w-full h-auto my-4 border border-border shadow-sm"
-                        onLoad={() => {
-                          console.log('✅ [IMG COMPONENT] Image loaded successfully');
-                        }}
-                        onError={(e) => {
-                          console.error('❌ [IMG COMPONENT] Image failed to load:', {
-                            srcType: typeof src,
-                            srcLength: typeof src === 'string' ? src.length : 'N/A',
-                            srcPreview: typeof src === 'string' ? src.substring(0, 100) : src,
-                            error: e,
-                          });
-                          e.currentTarget.style.display = 'none';
-                        }}
-                        loading="lazy"
-                      />
-                    );
+                  // Images - disabled because we handle them separately above
+                  img: () => {
+                    console.log('⚠️ [IMG COMPONENT DISABLED] This should not render!');
+                    return null;
                   },
                 }}
               >
                 {message.content}
               </ReactMarkdown>
-              </>
+                );
+              })()
             ) : (
               <p className="leading-relaxed">{message.content}</p>
             )}

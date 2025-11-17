@@ -314,7 +314,7 @@ async function generateImage(prompt: string, supabaseClient: any): Promise<strin
     // Generate unique filename
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(7);
-    const filename = `generated-images/${timestamp}-${randomId}.png`;
+    const filename = `${timestamp}-${randomId}.png`;
 
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabaseClient.storage

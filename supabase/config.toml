@@ -1,5 +1,7 @@
 # Supabase Configuration File
 
+project_id = "ckfktnhnnjbnbajgvwyz"
+
 [api]
 enabled = true
 port = 54321
