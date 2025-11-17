@@ -90,6 +90,9 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
     });
   }
 
+  // Debug: log available commands
+  console.log('=== ChatInput available commands ===', availableCommands);
+
   // Reset selected index when dropdown opens
   useEffect(() => {
     if (showMentions || showCommands || showAgentSelector) {
@@ -196,6 +199,11 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
   };
 
   const selectCommand = (commandOption: CommandOption) => {
+    console.log('=== selectCommand called ===');
+    console.log('Command:', commandOption.command);
+    console.log('Available assistants for this command:', commandOption.assistants);
+    console.log('Number of assistants:', commandOption.assistants.length);
+
     setSelectedCommand(commandOption.command);
     setSelectedCommandOption(commandOption);
     setMessage('');
@@ -204,9 +212,11 @@ export function ChatInput({ assistants, channelName, isDm, dmAssistantId, onSend
     // Check if multiple assistants can handle this command
     if (commandOption.assistants.length > 1) {
       // Show agent selector
+      console.log('→ Multiple assistants, showing selector');
       setShowAgentSelector(true);
     } else {
       // Only one assistant, auto-select it
+      console.log('→ Single assistant, auto-selecting:', commandOption.assistants[0]);
       setSelectedAgent(commandOption.assistants[0]);
       setTimeout(() => {
         textareaRef.current?.focus();
