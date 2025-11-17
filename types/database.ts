@@ -133,6 +133,8 @@ export interface Database {
           name: string
           description: string | null
           is_private: boolean
+          is_dm: boolean
+          dm_assistant_id: string | null
           created_at: string
           updated_at: string
           created_by: string | null
@@ -143,6 +145,8 @@ export interface Database {
           name: string
           description?: string | null
           is_private?: boolean
+          is_dm?: boolean
+          dm_assistant_id?: string | null
           created_at?: string
           updated_at?: string
           created_by?: string | null
@@ -153,6 +157,8 @@ export interface Database {
           name?: string
           description?: string | null
           is_private?: boolean
+          is_dm?: boolean
+          dm_assistant_id?: string | null
           created_at?: string
           updated_at?: string
           created_by?: string | null

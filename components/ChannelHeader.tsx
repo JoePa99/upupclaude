@@ -6,9 +6,11 @@ import { motion } from 'framer-motion';
 interface ChannelHeaderProps {
   channel: Channel;
   onClearHistory?: () => void;
+  onEditChannel?: () => void;
+  onDeleteChannel?: () => void;
 }
 
-export function ChannelHeader({ channel, onClearHistory }: ChannelHeaderProps) {
+export function ChannelHeader({ channel, onClearHistory, onEditChannel, onDeleteChannel }: ChannelHeaderProps) {
   const memberCount = channel.members.length;
   const aiCount = channel.assistants.length;
 
@@ -60,15 +62,35 @@ export function ChannelHeader({ channel, onClearHistory }: ChannelHeaderProps) {
             <span>·</span>
             <span>{aiCount} AI assistants</span>
           </div>
-          {channel.isDm && onClearHistory && (
-            <button
-              onClick={onClearHistory}
-              className="px-3 py-1.5 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 rounded border border-red-200 dark:border-red-900 transition-colors"
-              title="Clear conversation history"
-            >
-              Clear History
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {channel.isDm && onClearHistory && (
+              <button
+                onClick={onClearHistory}
+                className="px-3 py-1.5 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 rounded border border-red-200 dark:border-red-900 transition-colors"
+                title="Clear conversation history"
+              >
+                Clear History
+              </button>
+            )}
+            {!channel.isDm && onEditChannel && (
+              <button
+                onClick={onEditChannel}
+                className="px-3 py-1.5 text-xs text-accent hover:text-accent-hover hover:bg-accent/10 rounded border border-accent/30 transition-colors"
+                title="Edit channel"
+              >
+                Edit
+              </button>
+            )}
+            {!channel.isDm && onDeleteChannel && (
+              <button
+                onClick={onDeleteChannel}
+                className="px-3 py-1.5 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 rounded border border-red-200 dark:border-red-900 transition-colors"
+                title="Delete channel"
+              >
+                Delete
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </motion.div>
