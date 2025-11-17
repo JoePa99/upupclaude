@@ -40,6 +40,11 @@ export default function AdminPlaybooks() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{
+    current: number;
+    total: number;
+    fileName: string;
+  } | null>(null);
 
   useEffect(() => {
     loadWorkspaces();
@@ -122,44 +127,82 @@ export default function AdminPlaybooks() {
     e.preventDefault();
     if (!selectedPlaybook) return;
 
-    setUploading(true);
-    setUploadStatus(null);
+    const formElement = e.currentTarget;
+    const fileInput = formElement.elements.namedItem('file') as HTMLInputElement;
+    const files = fileInput?.files;
 
-    const formData = new FormData(e.currentTarget);
-    const file = formData.get('file') as File;
-
-    if (!file) {
-      setUploadStatus({ type: 'error', message: 'Please select a file' });
-      setUploading(false);
+    if (!files || files.length === 0) {
+      setUploadStatus({ type: 'error', message: 'Please select at least one file' });
       return;
     }
 
+    setUploading(true);
+    setUploadStatus(null);
+    setUploadProgress(null);
+
+    const filesArray = Array.from(files);
+    let successCount = 0;
+    let errorCount = 0;
+    const errors: string[] = [];
+
     try {
-      const response = await fetch(`/api/admin/playbooks/${selectedPlaybook.id}/documents/upload`, {
-        method: 'POST',
-        body: formData,
-      });
+      for (let i = 0; i < filesArray.length; i++) {
+        const file = filesArray[i];
 
-      const result = await response.json();
+        setUploadProgress({
+          current: i + 1,
+          total: filesArray.length,
+          fileName: file.name,
+        });
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Upload failed');
+        try {
+          const fileFormData = new FormData();
+          fileFormData.append('file', file);
+
+          const response = await fetch(
+            `/api/admin/playbooks/${selectedPlaybook.id}/documents/upload`,
+            {
+              method: 'POST',
+              body: fileFormData,
+            }
+          );
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || 'Upload failed');
+          }
+
+          successCount++;
+        } catch (error: any) {
+          errorCount++;
+          errors.push(`${file.name}: ${error.message}`);
+        }
       }
 
-      setUploadStatus({
-        type: 'success',
-        message: 'Document uploaded successfully! Processing embeddings...',
-      });
+      // Show final status
+      if (errorCount === 0) {
+        setUploadStatus({
+          type: 'success',
+          message: `Successfully uploaded ${successCount} file${successCount !== 1 ? 's' : ''}! Processing embeddings...`,
+        });
+      } else if (successCount === 0) {
+        setUploadStatus({
+          type: 'error',
+          message: `All uploads failed. ${errors.join('; ')}`,
+        });
+      } else {
+        setUploadStatus({
+          type: 'error',
+          message: `Uploaded ${successCount} file${successCount !== 1 ? 's' : ''}, ${errorCount} failed. ${errors.join('; ')}`,
+        });
+      }
 
       loadPlaybookDocuments(selectedPlaybook.id);
-      (e.target as HTMLFormElement).reset();
-    } catch (error: any) {
-      setUploadStatus({
-        type: 'error',
-        message: error.message || 'Upload failed',
-      });
+      formElement.reset();
     } finally {
       setUploading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -305,7 +348,7 @@ export default function AdminPlaybooks() {
               {/* Upload Form */}
               <div className="bg-background-secondary border border-border rounded-lg p-6">
                 <h4 className="text-sm font-semibold text-foreground mb-4">
-                  Upload Document
+                  Upload Documents
                 </h4>
                 <form onSubmit={handleFileUpload} className="space-y-4">
                   <div className="flex items-end gap-4">
@@ -314,6 +357,7 @@ export default function AdminPlaybooks() {
                         type="file"
                         name="file"
                         accept=".pdf,.doc,.docx,.txt,.md,.pptx,.ppt,.xlsx,.xls,.csv"
+                        multiple
                         className="w-full bg-background border border-border rounded px-4 py-2 text-foreground file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-accent file:text-background file:cursor-pointer"
                         required
                       />
@@ -326,6 +370,11 @@ export default function AdminPlaybooks() {
                       {uploading ? 'Uploading...' : 'Upload'}
                     </button>
                   </div>
+                  {uploadProgress && (
+                    <div className="text-sm text-foreground-secondary">
+                      Uploading file {uploadProgress.current} of {uploadProgress.total}: {uploadProgress.fileName}
+                    </div>
+                  )}
                   {uploadStatus && (
                     <div
                       className={`text-sm ${
