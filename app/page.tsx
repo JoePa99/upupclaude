@@ -42,7 +42,7 @@ export default async function Home() {
     redirect('/setup');
   }
 
-  // Fetch user's channels
+  // Fetch user's channels with assistant relationships
   const { data: channelMemberships } = await (supabase
     .from('channel_members') as any)
     .select(
@@ -53,7 +53,12 @@ export default async function Home() {
         name,
         description,
         is_private,
-        created_at
+        is_dm,
+        dm_assistant_id,
+        created_at,
+        channel_assistants (
+          assistant_id
+        )
       )
     `
     )
@@ -82,7 +87,7 @@ export default async function Home() {
 
   // Transform assistants and channels to frontend format
   const transformedAssistants = transformAssistants(assistants || []);
-  const transformedChannels = transformChannels(channels, [userProfile], transformedAssistants);
+  const transformedChannels = transformChannels(channels, transformedAssistants);
 
   // Fetch messages for the first channel
   const { data: messages } = await (supabase
