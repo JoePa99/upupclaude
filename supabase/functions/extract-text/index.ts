@@ -213,9 +213,30 @@ serve(async (req) => {
           ? 'agent_documents'
           : 'playbook_documents';
 
+    // First, verify the document exists
+    console.log('  🔍 Checking if document exists in', tableName, '...');
+    const { data: existingDoc, error: fetchError } = await supabase
+      .from(tableName)
+      .select('id, workspace_id, filename, status')
+      .eq('id', documentId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('  ❌ Error checking document:', fetchError);
+    }
+
+    console.log('  📄 Document exists?', !!existingDoc);
+    if (existingDoc) {
+      console.log('  📝 Document details:', JSON.stringify(existingDoc));
+    } else {
+      console.error('  ⚠️  WARNING: Document not found in', tableName, '!');
+      console.error('  ⚠️  Document ID:', documentId);
+      console.error('  ⚠️  Workspace ID:', workspaceId);
+    }
+
     // Update document with extracted text
     console.log('  💾 Saving extracted text to', tableName, '...');
-    const { error: updateError } = await supabase
+    const { data: updateData, error: updateError } = await supabase
       .from(tableName)
       .update({
         extracted_text: extractedText,
@@ -225,10 +246,16 @@ serve(async (req) => {
           word_count: extractedText.split(/\s+/).length,
         },
       })
-      .eq('id', documentId);
+      .eq('id', documentId)
+      .select();
 
     if (updateError) {
       throw new Error(`Database update failed: ${updateError.message}`);
+    }
+
+    if (!updateData || updateData.length === 0) {
+      console.error('  ⚠️  Update succeeded but found NO matching rows!');
+      throw new Error('Document not found in database after extraction');
     }
 
     console.log('  ✓ Text saved to database');

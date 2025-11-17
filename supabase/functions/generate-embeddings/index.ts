@@ -167,6 +167,8 @@ serve(async (req) => {
     }
 
     console.log('  ✓ Embeddings saved');
+    console.log('  ℹ️  Service role key present:', !!supabaseServiceKey);
+    console.log('  ℹ️  Service role key starts with:', supabaseServiceKey?.substring(0, 20));
 
     // Update document status to ready
     const tableName =
@@ -176,8 +178,30 @@ serve(async (req) => {
           ? 'agent_documents'
           : 'playbook_documents';
 
-    console.log('  ✓ Updating document status to ready in', tableName, '...');
-    const { error: updateError } = await supabase
+    // First, verify the document exists
+    console.log('  🔍 Checking if document exists in', tableName, '...');
+    const { data: existingDoc, error: fetchError } = await supabase
+      .from(tableName)
+      .select('id, workspace_id, filename, status')
+      .eq('id', documentId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('  ❌ Error checking document:', fetchError);
+    }
+
+    console.log('  📄 Document exists?', !!existingDoc);
+    if (existingDoc) {
+      console.log('  📝 Document details:', JSON.stringify(existingDoc));
+    } else {
+      console.error('  ⚠️  WARNING: Document not found! This should not happen!');
+      console.error('  ⚠️  Document ID:', documentId);
+      console.error('  ⚠️  Table:', tableName);
+      console.error('  ⚠️  Workspace ID:', workspaceId);
+    }
+
+    console.log('  📝 Attempting to update document status to ready in', tableName, '...');
+    const { data: updateData, error: updateError } = await supabase
       .from(tableName)
       .update({
         status: 'ready',
@@ -188,11 +212,18 @@ serve(async (req) => {
           embedding_count: embeddingRecords.length,
         },
       })
-      .eq('id', documentId);
+      .eq('id', documentId)
+      .select();
 
     if (updateError) {
       console.error('  ⚠️  Failed to update document status:', updateError.message);
+      console.error('  ⚠️  Error details:', JSON.stringify(updateError));
       // Don't throw - embeddings were created successfully
+    } else if (!updateData || updateData.length === 0) {
+      console.error('  ⚠️  Update succeeded but found NO matching rows!');
+      console.error('  ⚠️  This means the document was not found in', tableName);
+    } else {
+      console.log('  ✓ Document status updated successfully');
     }
 
     console.log('✅ [GENERATE-EMBEDDINGS] Completed successfully');
