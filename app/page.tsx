@@ -95,9 +95,12 @@ export default async function Home() {
   const messagesWithAuthors = await Promise.all(
     (messages || []).map(async (msg: any) => {
       const table = msg.author_type === 'human' ? 'users' : 'assistants';
+      const selectFields = msg.author_type === 'human'
+        ? 'id, name, email, avatar_url, role'
+        : 'id, name, avatar_url, role';
       const { data: author } = await (supabase
         .from(table) as any)
-        .select('id, name, email, avatar_url, role')
+        .select(selectFields)
         .eq('id', msg.author_id)
         .single();
 
