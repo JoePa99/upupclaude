@@ -287,7 +287,7 @@ export function Message({ message, index }: MessageProps) {
                       alt={alt || 'Generated Image'}
                       className="rounded-lg max-w-full h-auto my-4 border border-border shadow-sm"
                       onError={(e) => {
-                        console.error('Image failed to load:', src?.substring(0, 100));
+                        console.error('Image failed to load:', typeof src === 'string' ? src.substring(0, 100) : src);
                         e.currentTarget.style.display = 'none';
                       }}
                       loading="lazy"
