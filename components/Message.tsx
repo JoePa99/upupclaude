@@ -135,8 +135,32 @@ export function Message({ message, index }: MessageProps) {
             {isAI ? (
               <>
                 {(() => {
-                  if (message.content.includes('![Generated Image]')) {
-                    console.log('📝 [MESSAGE] Content contains image markdown:', message.content.substring(0, 200));
+                  // Check if message contains image markdown
+                  const imageMatch = message.content.match(/!\[Generated Image\]\((data:image\/[^)]+)\)/);
+                  if (imageMatch) {
+                    const base64Src = imageMatch[1];
+                    console.log('📝 [MESSAGE] Found image in markdown:', {
+                      srcLength: base64Src.length,
+                      srcPreview: base64Src.substring(0, 100),
+                    });
+                    // Render image directly instead of through markdown
+                    return (
+                      <img
+                        src={base64Src}
+                        alt="Generated Image"
+                        className="rounded-lg max-w-full h-auto my-4 border border-border shadow-sm"
+                        onLoad={() => {
+                          console.log('✅ [DIRECT IMG] Image loaded successfully');
+                        }}
+                        onError={(e) => {
+                          console.error('❌ [DIRECT IMG] Image failed to load:', {
+                            srcLength: base64Src.length,
+                            srcPreview: base64Src.substring(0, 100),
+                            error: e,
+                          });
+                        }}
+                      />
+                    );
                   }
                   return null;
                 })()}
