@@ -36,11 +36,11 @@ Location: Supabase Dashboard → Project Settings → Edge Functions → Manage 
 **Current providers:**
 - `OPENAI_API_KEY` - For GPT models
 - `ANTHROPIC_API_KEY` - For Claude models
-- `GOOGLE_AI_API_KEY` - For Gemini models
+- `GOOGLE_AI_API_KEY` - For Gemini models (including image generation)
+- `PERPLEXITY_API_KEY` - For deep research with web search (optional)
 
 **Future providers to add:**
 - `COHERE_API_KEY` - For Cohere models
-- `PERPLEXITY_API_KEY` - For Perplexity models
 
 **Note:** These are completely separate from Vercel environment variables. Vercel variables are for the Next.js app, Supabase secrets are for Edge Functions.
 
@@ -90,9 +90,35 @@ Response appears via Realtime subscription
 4. Check Supabase Edge Function logs for execution details
 5. AI response should appear in chat via Realtime
 
+### Deep Research Feature
+
+**What is Deep Research?**
+Deep research allows assistants to bypass their configured persona and conduct general research using web search capabilities.
+
+**How it works:**
+1. Enable "Deep Research" when creating/editing an assistant
+2. Use the `/research` command to trigger deep research mode
+3. Perplexity API is called with web search enabled
+4. Response includes current information with citations
+5. The assistant's regular system prompt is ignored during research
+
+**Why this matters:**
+- Assistants with specific personas (e.g., "CPB Program Architect") can be too restrictive
+- Deep research allows them to answer general questions when needed
+- Uses Perplexity's `sonar-reasoning` model for accurate, cited answers
+- Provides real-time web information instead of training data only
+
+**Setup:**
+1. Set `PERPLEXITY_API_KEY` in Supabase Edge Function secrets
+2. Get API key from: https://www.perplexity.ai/settings/api
+3. Enable "Deep Research" toggle when creating an assistant
+4. Use `/research` command in chat to trigger it
+
+**Code location:** `supabase/functions/ai-respond/index.ts` (conductDeepResearch function)
+
 ### Future Enhancements
 
-When adding new AI providers (Cohere, Perplexity, etc.):
+When adding new AI providers (Cohere, etc.):
 1. Add the provider function to `supabase/functions/ai-respond/index.ts`
 2. Add the API key secret in Supabase Dashboard
 3. Update the model selection in `components/CreateAssistantModal.tsx`

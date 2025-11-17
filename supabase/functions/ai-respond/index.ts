@@ -354,6 +354,73 @@ async function callGoogle(assistant: any, conversationHistory: Array<{ role: str
   return data.candidates[0].content.parts[0].text;
 }
 
+/**
+ * Conduct deep research using Perplexity API (with web search and citations)
+ */
+async function conductDeepResearch(
+  query: string,
+  conversationHistory: Array<{ role: string; content: string }>
+): Promise<string> {
+  const apiKey = Deno.env.get('PERPLEXITY_API_KEY');
+  if (!apiKey) {
+    throw new Error('Perplexity API key not configured for deep research');
+  }
+
+  console.log('🧠 [DEEP-RESEARCH] Conducting research with Perplexity...');
+
+  // Build research-focused system prompt
+  const researchSystemPrompt = `You are a professional research assistant. Your role is to:
+- Provide comprehensive, well-researched answers based on current information
+- Include relevant citations and sources
+- Present information objectively and accurately
+- Break down complex topics into understandable explanations
+- Acknowledge when information is uncertain or unavailable
+
+Focus on delivering factual, up-to-date information with proper context.`;
+
+  // Prepare messages with conversation context
+  const messages = [
+    { role: 'system', content: researchSystemPrompt },
+    ...conversationHistory.slice(-5), // Include last 5 messages for context
+    { role: 'user', content: query },
+  ];
+
+  const response = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'sonar-reasoning', // Perplexity's reasoning model with web access
+      messages,
+      temperature: 0.2, // Lower temperature for more factual responses
+      max_tokens: 4000,
+      return_citations: true,
+      return_images: false,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Perplexity API error: ${error.error?.message || 'Unknown error'}`);
+  }
+
+  const data = await response.json();
+  let answer = data.choices[0].message.content;
+
+  // Append citations if available
+  if (data.citations && data.citations.length > 0) {
+    answer += '\n\n---\n**Sources:**\n';
+    data.citations.forEach((citation: string, idx: number) => {
+      answer += `${idx + 1}. ${citation}\n`;
+    });
+  }
+
+  console.log('✓ [DEEP-RESEARCH] Research completed with', data.citations?.length || 0, 'sources');
+  return answer;
+}
+
 async function generateImage(prompt: string, supabaseClient: any): Promise<string> {
   const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
   if (!apiKey) {
@@ -468,7 +535,7 @@ serve(async (req) => {
     // Fetch assistant details
     const { data: assistant, error: assistantError } = await supabaseClient
       .from('assistants')
-      .select('id, workspace_id, name, role, system_prompt, model_provider, model_name, avatar_url, status')
+      .select('id, workspace_id, name, role, system_prompt, model_provider, model_name, avatar_url, status, enable_deep_research, enable_web_search')
       .eq('id', assistantId)
       .single();
 
@@ -487,8 +554,22 @@ serve(async (req) => {
 
     let aiResponse: string;
 
+    // Handle deep research command
+    if (command === 'research' && assistant.enable_deep_research) {
+      console.log('🧠 [AI-RESPOND] Deep research command detected');
+
+      // Fetch minimal conversation history for context
+      const conversationHistory = await fetchConversationHistory(
+        supabaseClient,
+        channelId,
+        assistantId,
+        10 // Last 10 messages for research context
+      );
+
+      aiResponse = await conductDeepResearch(userMessage, conversationHistory);
+    }
     // Handle image generation command
-    if (command === 'image') {
+    else if (command === 'image') {
       console.log('🎨 [AI-RESPOND] Image generation command detected');
       aiResponse = await generateImage(userMessage, supabaseClient);
     } else {

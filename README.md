@@ -113,9 +113,26 @@ upupclaude/
 
 ### Model Selection
 Each assistant can use different LLM providers:
-- **OpenAI**: GPT-4o, GPT-4 Turbo, GPT-4o Mini
-- **Anthropic**: Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Haiku
-- **Google**: Gemini 1.5 Pro, Gemini 2.0 Flash
+- **OpenAI**: GPT-5.1, GPT-5.1 Chat, GPT-5 Nano
+- **Anthropic**: Claude Opus 4.1, Claude Sonnet 4.5, Claude Haiku 4.5
+- **Google**: Gemini 2.5 Pro, Gemini 2.5 Flash, Gemini 2.5 Flash-Lite
+
+### Special Capabilities
+
+**Deep Research** 🧠
+- Bypass persona restrictions to answer general questions
+- Uses Perplexity API with real-time web search
+- Provides citations and sources
+- Triggered via `/research` command
+- Perfect for assistants with specific personas who occasionally need to research outside their domain
+
+**Image Generation** 🎨
+- Generate images using Google's Gemini 2.5 Flash Image model
+- Triggered via `/image` command
+- Images automatically uploaded to Supabase storage
+
+**Web Search** 🔍
+- Coming soon: Real-time web search capability for all assistants
 
 ### Conversation Memory
 - First 10 turns: Full context
@@ -156,7 +173,8 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 GOOGLE_AI_API_KEY=...
-COHERE_API_KEY=...
+PERPLEXITY_API_KEY=...  # Optional: For deep research feature
+COHERE_API_KEY=...      # For vector search reranking
 ```
 
 4. Deploy!
