@@ -170,6 +170,14 @@ async function callOpenAI(assistant: any, conversationHistory: Array<{ role: str
     throw new Error('OpenAI API key not configured');
   }
 
+  // Truncate conversation history to fit within token budget
+  const truncatedHistory = truncateConversationHistory(
+    conversationHistory,
+    systemPrompt,
+    TOKEN_LIMITS.openai,
+    'openai'
+  );
+
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -180,7 +188,7 @@ async function callOpenAI(assistant: any, conversationHistory: Array<{ role: str
       model: assistant.model_name,
       messages: [
         { role: 'system', content: systemPrompt },
-        ...conversationHistory,
+        ...truncatedHistory,
       ],
       // Let OpenAI use optimal defaults for temperature and max_tokens
     }),
@@ -196,6 +204,21 @@ async function callOpenAI(assistant: any, conversationHistory: Array<{ role: str
 }
 
 /**
+ * Token limits per provider (conservative for cost control)
+ *
+ * These limits balance context quality with API costs:
+ * - Higher limits = More context but higher costs
+ * - Lower limits = Less context but lower costs
+ *
+ * Adjust these values based on your budget and context needs.
+ */
+const TOKEN_LIMITS = {
+  anthropic: 100000,  // Claude models support 200k, using 100k for cost control
+  openai: 120000,     // GPT-4 supports 128k, using 120k for cost control
+  google: 100000,     // Gemini models support more, using 100k for cost control
+};
+
+/**
  * Estimate token count for text (rough approximation: ~4 chars per token)
  */
 function estimateTokens(text: string): number {
@@ -208,7 +231,8 @@ function estimateTokens(text: string): number {
 function truncateConversationHistory(
   conversationHistory: Array<{ role: string; content: string }>,
   systemPrompt: string,
-  maxTokens: number = 200000
+  maxTokens: number,
+  provider: string
 ): Array<{ role: string; content: string }> {
   const maxOutputTokens = 8192;
   const safetyBuffer = 1000; // Extra buffer for API overhead
@@ -218,11 +242,11 @@ function truncateConversationHistory(
   const systemTokens = estimateTokens(systemPrompt);
   let remainingTokens = availableTokens - systemTokens;
 
-  console.log(`🔍 [TOKEN-LIMIT] System prompt: ${systemTokens} tokens, Available for history: ${remainingTokens} tokens`);
+  console.log(`🔍 [TOKEN-LIMIT:${provider.toUpperCase()}] Max: ${maxTokens}, System prompt: ${systemTokens} tokens, Available for history: ${remainingTokens} tokens`);
 
   // If system prompt alone is too large, we have a problem
   if (remainingTokens <= 0) {
-    console.warn('⚠️ [TOKEN-LIMIT] System prompt exceeds token limit, truncating severely');
+    console.warn(`⚠️ [TOKEN-LIMIT:${provider.toUpperCase()}] System prompt exceeds token limit, truncating severely`);
     return conversationHistory.slice(-2); // Keep only last 2 messages
   }
 
@@ -239,12 +263,13 @@ function truncateConversationHistory(
       truncated.unshift(message); // Add to beginning to maintain order
       currentTokens += messageTokens;
     } else {
-      console.log(`✂️ [TOKEN-LIMIT] Truncated ${conversationHistory.length - truncated.length} older messages`);
+      console.log(`✂️ [TOKEN-LIMIT:${provider.toUpperCase()}] Truncated ${conversationHistory.length - truncated.length} older messages to fit budget`);
       break;
     }
   }
 
-  console.log(`✓ [TOKEN-LIMIT] Kept ${truncated.length}/${conversationHistory.length} messages (~${currentTokens} tokens)`);
+  const totalEstimated = systemTokens + currentTokens + maxOutputTokens;
+  console.log(`✓ [TOKEN-LIMIT:${provider.toUpperCase()}] Kept ${truncated.length}/${conversationHistory.length} messages (~${totalEstimated} total tokens)`);
   return truncated;
 }
 
@@ -254,8 +279,13 @@ async function callAnthropic(assistant: any, conversationHistory: Array<{ role: 
     throw new Error('Anthropic API key not configured');
   }
 
-  // Truncate conversation history to fit within Anthropic's 200k token limit
-  const truncatedHistory = truncateConversationHistory(conversationHistory, systemPrompt, 200000);
+  // Truncate conversation history to fit within token budget
+  const truncatedHistory = truncateConversationHistory(
+    conversationHistory,
+    systemPrompt,
+    TOKEN_LIMITS.anthropic,
+    'anthropic'
+  );
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -287,8 +317,16 @@ async function callGoogle(assistant: any, conversationHistory: Array<{ role: str
     throw new Error('Google AI API key not configured');
   }
 
+  // Truncate conversation history to fit within token budget
+  const truncatedHistory = truncateConversationHistory(
+    conversationHistory,
+    systemPrompt,
+    TOKEN_LIMITS.google,
+    'google'
+  );
+
   // Google uses a different format - convert conversation history
-  const contents = conversationHistory.map((msg, idx) => ({
+  const contents = truncatedHistory.map((msg, idx) => ({
     role: msg.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: idx === 0 ? systemPrompt + '\n\n' + msg.content : msg.content }],
   }));
@@ -455,20 +493,20 @@ serve(async (req) => {
       aiResponse = await generateImage(userMessage, supabaseClient);
     } else {
       // Standard text response flow
-      // Fetch conversation history
+      // Fetch conversation history (reduced for cost control)
       const conversationHistory = await fetchConversationHistory(
         supabaseClient,
         channelId,
         assistantId,
-        20 // Last 20 messages
+        15 // Last 15 messages (reduced from 20 for cost control)
       );
 
-      // Retrieve relevant context from CompanyOS
+      // Retrieve relevant context from CompanyOS (reduced for cost control)
       const contextChunks = await retrieveContext(
         supabaseClient,
         assistant.workspace_id,
         userMessage,
-        5 // Top 5 most relevant chunks
+        3 // Top 3 most relevant chunks (reduced from 5 for cost control)
       );
 
       // Build contextual system prompt
