@@ -402,10 +402,28 @@ async function conductDeepResearch(
 
 Focus on delivering factual, up-to-date information with proper context.`;
 
-  // Prepare messages with conversation context
+  // Filter conversation history to ensure alternating roles (Perplexity requirement)
+  // Merge consecutive messages from the same role
+  const alternatingHistory: Array<{ role: string; content: string }> = [];
+  for (const msg of conversationHistory.slice(-10)) {
+    if (alternatingHistory.length === 0) {
+      alternatingHistory.push(msg);
+    } else {
+      const lastMsg = alternatingHistory[alternatingHistory.length - 1];
+      if (lastMsg.role === msg.role) {
+        // Merge consecutive messages from same role
+        lastMsg.content += '\n\n' + msg.content;
+      } else {
+        alternatingHistory.push(msg);
+      }
+    }
+  }
+
+  // Prepare messages with conversation context (only last 3 turns to keep it focused)
+  const contextMessages = alternatingHistory.slice(-6); // Last 3 user-assistant pairs
   const messages = [
     { role: 'system', content: researchSystemPrompt },
-    ...conversationHistory.slice(-5), // Include last 5 messages for context
+    ...contextMessages,
     { role: 'user', content: query },
   ];
 

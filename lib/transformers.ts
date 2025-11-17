@@ -60,14 +60,22 @@ export function transformAssistants(dbAssistants: any[]): Assistant[] {
 /**
  * Transform database channel format to frontend format
  */
-export function transformChannel(dbChannel: any, members: any[] = [], assistants: Assistant[] = []): Channel {
+export function transformChannel(dbChannel: any, allAssistants: Assistant[] = []): Channel {
+  // Extract assistant IDs from channel_assistants junction table
+  const channelAssistantIds = (dbChannel.channel_assistants || []).map((ca: any) => ca.assistant_id);
+
+  // Filter to only include assistants that are in this channel
+  const channelAssistants = allAssistants.filter(a => channelAssistantIds.includes(a.id));
+
   return {
     id: dbChannel.id,
     name: dbChannel.name,
     description: dbChannel.description || '',
-    members: members,
-    assistants: assistants,
+    members: [], // Members can be populated separately if needed
+    assistants: channelAssistants,
     isPrivate: dbChannel.is_private || false,
+    isDm: dbChannel.is_dm || false,
+    dmAssistantId: dbChannel.dm_assistant_id || undefined,
     unreadCount: 0,
   };
 }
@@ -75,6 +83,6 @@ export function transformChannel(dbChannel: any, members: any[] = [], assistants
 /**
  * Transform array of database channels
  */
-export function transformChannels(dbChannels: any[], members: any[] = [], assistants: Assistant[] = []): Channel[] {
-  return (dbChannels || []).map(ch => transformChannel(ch, members, assistants));
+export function transformChannels(dbChannels: any[], allAssistants: Assistant[] = []): Channel[] {
+  return (dbChannels || []).map(ch => transformChannel(ch, allAssistants));
 }

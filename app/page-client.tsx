@@ -114,16 +114,21 @@ export function PageClient({
 
   // Handle channel creation
   const handleChannelCreated = async () => {
-    // Refresh channels list
+    // Refresh channels list with assistant relationships
     const { data: channels } = await (supabase
       .from('channels') as any)
-      .select('*')
+      .select(`
+        *,
+        channel_assistants (
+          assistant_id
+        )
+      `)
       .eq('workspace_id', workspace.id)
       .order('created_at', { ascending: true });
 
     if (channels) {
       const { transformChannels } = await import('@/lib/transformers');
-      const transformedChannels = transformChannels(channels);
+      const transformedChannels = transformChannels(channels, workspace.assistants);
 
       setWorkspace({
         ...workspace,
@@ -141,16 +146,21 @@ export function PageClient({
     // Refresh the channel data
     await handleChannelCreated();
 
-    // Also refresh the current channel
+    // Also refresh the current channel with assistant relationships
     const { data: updatedChannel } = await (supabase
       .from('channels') as any)
-      .select('*')
+      .select(`
+        *,
+        channel_assistants (
+          assistant_id
+        )
+      `)
       .eq('id', currentChannel.id)
       .single();
 
     if (updatedChannel) {
       const { transformChannels } = await import('@/lib/transformers');
-      const [transformed] = transformChannels([updatedChannel]);
+      const [transformed] = transformChannels([updatedChannel], workspace.assistants);
       setCurrentChannel(transformed);
     }
   };
