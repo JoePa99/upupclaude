@@ -133,6 +133,13 @@ export function Message({ message, index }: MessageProps) {
             )}
           >
             {isAI ? (
+              <>
+                {(() => {
+                  if (message.content.includes('![Generated Image]')) {
+                    console.log('📝 [MESSAGE] Content contains image markdown:', message.content.substring(0, 200));
+                  }
+                  return null;
+                })()}
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
@@ -281,22 +288,39 @@ export function Message({ message, index }: MessageProps) {
                   ),
 
                   // Images
-                  img: ({ src, alt }) => (
-                    <img
-                      src={src}
-                      alt={alt || 'Generated Image'}
-                      className="rounded-lg max-w-full h-auto my-4 border border-border shadow-sm"
-                      onError={(e) => {
-                        console.error('Image failed to load:', typeof src === 'string' ? src.substring(0, 100) : src);
-                        e.currentTarget.style.display = 'none';
-                      }}
-                      loading="lazy"
-                    />
-                  ),
+                  img: ({ src, alt }) => {
+                    console.log('🖼️ [IMG COMPONENT] Rendering image:', {
+                      srcType: typeof src,
+                      srcLength: typeof src === 'string' ? src.length : 'N/A',
+                      srcPreview: typeof src === 'string' ? src.substring(0, 100) : src,
+                      alt,
+                    });
+                    return (
+                      <img
+                        src={src}
+                        alt={alt || 'Generated Image'}
+                        className="rounded-lg max-w-full h-auto my-4 border border-border shadow-sm"
+                        onLoad={() => {
+                          console.log('✅ [IMG COMPONENT] Image loaded successfully');
+                        }}
+                        onError={(e) => {
+                          console.error('❌ [IMG COMPONENT] Image failed to load:', {
+                            srcType: typeof src,
+                            srcLength: typeof src === 'string' ? src.length : 'N/A',
+                            srcPreview: typeof src === 'string' ? src.substring(0, 100) : src,
+                            error: e,
+                          });
+                          e.currentTarget.style.display = 'none';
+                        }}
+                        loading="lazy"
+                      />
+                    );
+                  },
                 }}
               >
                 {message.content}
               </ReactMarkdown>
+              </>
             ) : (
               <p className="leading-relaxed">{message.content}</p>
             )}
