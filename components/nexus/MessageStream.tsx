@@ -3,11 +3,38 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Message as MessageType } from '@/types';
 
 interface MessageStreamProps {
   messages: MessageType[];
   onArtifactOpen?: (message: MessageType) => void;
+}
+
+/**
+ * Copy button for code blocks with feedback animation
+ */
+function CopyButton({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <motion.button
+      onClick={handleCopy}
+      className="px-3 py-1.5 text-xs rounded-lg font-bold bg-white/50 hover:bg-white/80 border border-white/70 text-luminous-text-primary hover:text-luminous-accent-cyan transition-all shadow-sm"
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      {copied ? '✓ Copied!' : '📋 Copy'}
+    </motion.button>
+  );
 }
 
 /**
@@ -183,7 +210,177 @@ function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
           {/* Main Content */}
           <div className="px-6 py-5">
             <div className="prose prose-sm max-w-none text-luminous-text-primary">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  // Paragraphs
+                  p: ({ children }) => (
+                    <p className="mb-4 last:mb-0 leading-relaxed text-luminous-text-primary">
+                      {children}
+                    </p>
+                  ),
+
+                  // Headings with Luminous Glass styling
+                  h1: ({ children }) => (
+                    <h1 className="text-3xl font-extrabold bg-gradient-to-r from-luminous-accent-cyan via-luminous-accent-purple to-luminous-accent-coral bg-clip-text text-transparent mb-4 mt-6 first:mt-0 pb-3 border-b border-luminous-text-tertiary/20">
+                      {children}
+                    </h1>
+                  ),
+                  h2: ({ children }) => (
+                    <h2 className="text-2xl font-bold text-luminous-text-primary mb-3 mt-5 first:mt-0">
+                      {children}
+                    </h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="text-xl font-semibold text-luminous-text-primary mb-2 mt-4 first:mt-0">
+                      {children}
+                    </h3>
+                  ),
+                  h4: ({ children }) => (
+                    <h4 className="text-lg font-semibold text-luminous-text-secondary mb-2 mt-3 first:mt-0">
+                      {children}
+                    </h4>
+                  ),
+
+                  // Text formatting
+                  strong: ({ children }) => (
+                    <strong className="text-luminous-text-primary font-extrabold">
+                      {children}
+                    </strong>
+                  ),
+                  em: ({ children }) => (
+                    <em className="text-luminous-text-secondary italic">{children}</em>
+                  ),
+
+                  // Code blocks with syntax highlighting
+                  code: ({ node, inline, className, children, ...props }: any) => {
+                    const match = /language-(\w+)/.exec(className || '');
+                    const language = match ? match[1] : '';
+                    const codeString = String(children).replace(/\n$/, '');
+
+                    return !inline && language ? (
+                      <div className="my-4 rounded-2xl overflow-hidden border border-white/70 shadow-luminous bg-white/40 backdrop-blur-xl">
+                        <div className="bg-gradient-to-r from-luminous-accent-cyan/20 via-luminous-accent-purple/20 to-luminous-accent-coral/20 px-5 py-3 border-b border-white/50 flex items-center justify-between">
+                          <span className="text-xs font-bold text-luminous-text-primary uppercase tracking-wider flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-luminous-accent-cyan animate-pulse"></span>
+                            {language}
+                          </span>
+                          <CopyButton code={codeString} />
+                        </div>
+                        <div className="bg-[#1E1E1E] p-4">
+                          <SyntaxHighlighter
+                            style={vscDarkPlus}
+                            language={language}
+                            PreTag="div"
+                            className="!m-0 !bg-transparent text-sm"
+                            customStyle={{
+                              margin: 0,
+                              padding: 0,
+                              background: 'transparent',
+                            }}
+                            showLineNumbers
+                            {...props}
+                          >
+                            {codeString}
+                          </SyntaxHighlighter>
+                        </div>
+                      </div>
+                    ) : (
+                      <code
+                        className="px-2 py-0.5 rounded-lg bg-luminous-accent-cyan/10 text-luminous-accent-cyan font-mono text-sm border border-luminous-accent-cyan/30 font-semibold"
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                    );
+                  },
+
+                  // Lists with custom styling
+                  ul: ({ children }) => (
+                    <ul className="ml-6 space-y-2 mb-4 text-luminous-text-primary">
+                      {children}
+                    </ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="ml-6 space-y-2 mb-4 text-luminous-text-primary">
+                      {children}
+                    </ol>
+                  ),
+                  li: ({ children, ordered }: any) => (
+                    <li className="leading-relaxed flex items-start gap-3">
+                      {!ordered && (
+                        <span className="inline-block w-2 h-2 rounded-full bg-gradient-to-br from-luminous-accent-cyan to-luminous-accent-purple mt-2 flex-shrink-0"></span>
+                      )}
+                      <span className="flex-1">{children}</span>
+                    </li>
+                  ),
+
+                  // Blockquotes
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-4 border-luminous-accent-purple/60 pl-5 py-3 my-4 italic text-luminous-text-secondary bg-luminous-accent-purple/5 rounded-r-2xl backdrop-blur-sm">
+                      {children}
+                    </blockquote>
+                  ),
+
+                  // Links with hover glow
+                  a: ({ children, href }) => (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-luminous-accent-cyan hover:text-luminous-accent-purple font-semibold underline underline-offset-2 decoration-luminous-accent-cyan/40 hover:decoration-luminous-accent-purple/60 transition-all duration-300"
+                    >
+                      {children}
+                    </a>
+                  ),
+
+                  // Tables with Luminous Glass styling
+                  table: ({ children }) => (
+                    <div className="my-4 overflow-x-auto rounded-2xl border border-white/70 shadow-luminous">
+                      <table className="min-w-full border-collapse bg-white/40 backdrop-blur-xl">
+                        {children}
+                      </table>
+                    </div>
+                  ),
+                  thead: ({ children }) => (
+                    <thead className="bg-gradient-to-r from-luminous-accent-cyan/20 via-luminous-accent-purple/20 to-luminous-accent-coral/20">
+                      {children}
+                    </thead>
+                  ),
+                  tbody: ({ children }) => <tbody>{children}</tbody>,
+                  tr: ({ children }) => (
+                    <tr className="border-b border-white/30 last:border-0 hover:bg-white/30 transition-colors">
+                      {children}
+                    </tr>
+                  ),
+                  th: ({ children }) => (
+                    <th className="px-5 py-3 text-left text-sm font-bold text-luminous-text-primary border-r border-white/30 last:border-0">
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="px-5 py-3 text-sm text-luminous-text-secondary border-r border-white/20 last:border-0">
+                      {children}
+                    </td>
+                  ),
+
+                  // Horizontal rule
+                  hr: () => (
+                    <hr className="my-6 border-0 h-px bg-gradient-to-r from-transparent via-luminous-accent-cyan/50 through-luminous-accent-purple/50 to-transparent" />
+                  ),
+
+                  // Images
+                  img: ({ src, alt }) => (
+                    <img
+                      src={src}
+                      alt={alt || 'Image'}
+                      className="rounded-2xl max-w-full h-auto my-4 border-2 border-white/70 shadow-super-glass"
+                    />
+                  ),
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
             </div>
           </div>
 
