@@ -5,9 +5,11 @@ import { createClient } from '@/lib/supabase/client';
 import { transformMessage } from '@/lib/transformers';
 import { MeshGradientBackground } from '@/components/nexus/MeshGradientBackground';
 import { NexusSidebar } from '@/components/nexus/NexusSidebar';
+import { ChannelHeader } from '@/components/nexus/ChannelHeader';
 import { MessageStream } from '@/components/nexus/MessageStream';
 import { OmniComposer } from '@/components/nexus/OmniComposer';
 import { AdaptiveCanvas } from '@/components/nexus/AdaptiveCanvas';
+import { EditChannelModal } from '@/components/EditChannelModal';
 import type { Channel, Message as MessageType, Workspace } from '@/types';
 
 interface PageClientProps {
@@ -31,8 +33,10 @@ export function PageClient({
   const [currentChannel, setCurrentChannel] = useState<Channel>(initialChannel);
   const [messages, setMessages] = useState<MessageType[]>(initialMessages);
   const [sending, setSending] = useState(false);
+  const [typingAssistants, setTypingAssistants] = useState<string[]>([]);
   const [canvasMessage, setCanvasMessage] = useState<MessageType | null>(null);
   const [showCanvas, setShowCanvas] = useState(false);
+  const [showEditChannel, setShowEditChannel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -91,6 +95,131 @@ export function PageClient({
     }
   };
 
+  // Handle assistant creation
+  const handleAssistantCreated = async () => {
+    const { data: assistants } = await (supabase
+      .from('assistants') as any)
+      .select('*')
+      .eq('workspace_id', workspace.id);
+
+    if (assistants) {
+      const { transformAssistants } = await import('@/lib/transformers');
+      const transformedAssistants = transformAssistants(assistants);
+
+      setWorkspace({
+        ...workspace,
+        assistants: transformedAssistants,
+      });
+
+      setCurrentChannel({
+        ...currentChannel,
+        assistants: transformedAssistants,
+      });
+    }
+  };
+
+  // Handle channel creation
+  const handleChannelCreated = async () => {
+    const { data: channels } = await (supabase
+      .from('channels') as any)
+      .select(`
+        *,
+        channel_assistants (
+          assistant_id
+        )
+      `)
+      .eq('workspace_id', workspace.id)
+      .order('created_at', { ascending: true });
+
+    if (channels) {
+      const { transformChannels } = await import('@/lib/transformers');
+      const transformedChannels = transformChannels(channels, workspace.assistants);
+
+      setWorkspace({
+        ...workspace,
+        channels: transformedChannels,
+      });
+    }
+  };
+
+  // Handle channel update
+  const handleEditChannel = () => {
+    setShowEditChannel(true);
+  };
+
+  const handleChannelUpdated = async () => {
+    await handleChannelCreated();
+
+    const { data: updatedChannel } = await (supabase
+      .from('channels') as any)
+      .select(`
+        *,
+        channel_assistants (
+          assistant_id
+        )
+      `)
+      .eq('id', currentChannel.id)
+      .single();
+
+    if (updatedChannel) {
+      const { transformChannels } = await import('@/lib/transformers');
+      const [transformed] = transformChannels([updatedChannel], workspace.assistants);
+      setCurrentChannel(transformed);
+    }
+  };
+
+  // Handle channel deletion
+  const handleDeleteChannel = async () => {
+    if (!confirm('Are you sure you want to delete this channel? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/channels/${currentChannel.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete channel');
+      }
+
+      await handleChannelCreated();
+
+      const firstChannel = workspace.channels.find(c => c.id !== currentChannel.id);
+      if (firstChannel) {
+        setCurrentChannel(firstChannel);
+      }
+    } catch (error: any) {
+      console.error('Error deleting channel:', error);
+      alert(error.message || 'Failed to delete channel');
+    }
+  };
+
+  const handleClearHistory = async () => {
+    if (!currentChannel.isDm) return;
+
+    const confirmed = confirm(
+      'Are you sure you want to clear this conversation history? This action cannot be undone.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/channels/${currentChannel.id}/clear`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear history');
+      }
+
+      setMessages((prev) => prev.filter((m) => m.channelId !== currentChannel.id));
+    } catch (error: any) {
+      console.error('Error clearing history:', error);
+      alert(error.message || 'Failed to clear history');
+    }
+  };
 
   // Load messages when channel changes
   useEffect(() => {
@@ -183,6 +312,11 @@ export function PageClient({
 
     setSending(true);
     try {
+      // Add typing indicators for mentioned assistants
+      if (mentions && mentions.length > 0) {
+        setTypingAssistants((prev) => [...new Set([...prev, ...mentions])]);
+      }
+
       const response = await fetch('/api/messages/send', {
         method: 'POST',
         headers: {
@@ -232,23 +366,73 @@ export function PageClient({
           currentChannel={currentChannel}
           currentUser={currentUser}
           onChannelSelect={setCurrentChannel}
+          onAssistantCreated={handleAssistantCreated}
+          onChannelCreated={handleChannelCreated}
         />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col relative pb-32">
-          {/* Message Stream */}
-          <MessageStream
-            messages={channelMessages}
-            onArtifactOpen={handleArtifactOpen}
+        <div className="flex-1 flex flex-col relative">
+          {/* Channel Header */}
+          <ChannelHeader
+            channel={currentChannel}
+            onClearHistory={handleClearHistory}
+            onEditChannel={handleEditChannel}
+            onDeleteChannel={handleDeleteChannel}
           />
 
-          {/* Scroll anchor */}
-          <div ref={messagesEndRef} />
+          {/* Message Stream */}
+          <div className="flex-1 overflow-y-auto pb-32">
+            <MessageStream
+              messages={channelMessages}
+              onArtifactOpen={handleArtifactOpen}
+            />
+
+            {/* Typing Indicators */}
+            {typingAssistants.length > 0 && (
+              <div className="px-8 py-4 space-y-4">
+                {typingAssistants.map((assistantId) => {
+                  const assistant = workspace.assistants.find((a) => a.id === assistantId);
+                  if (!assistant) return null;
+
+                  return (
+                    <div key={`typing-${assistantId}`} className="flex items-start gap-4 opacity-70">
+                      <div className="w-10 h-10 rounded-full bg-luminous-accent-purple/20 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-extrabold text-luminous-accent-purple">
+                          {assistant.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="font-bold text-luminous-text-primary text-sm">
+                            {assistant.name}
+                          </span>
+                          <span className="text-xs text-luminous-text-tertiary">
+                            {assistant.role}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex gap-1">
+                            <span className="w-2 h-2 bg-luminous-accent-purple rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-2 h-2 bg-luminous-accent-purple rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-2 h-2 bg-luminous-accent-purple rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          </div>
+                          <span className="text-xs text-luminous-text-tertiary font-medium ml-1">thinking...</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Scroll anchor */}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
         {/* Omni-Composer - Floating Pill Input */}
         <OmniComposer
-          assistants={currentChannel.assistants}
+          assistants={workspace.assistants}
           onSendMessage={handleSendMessage}
           disabled={sending}
         />
@@ -259,7 +443,14 @@ export function PageClient({
           message={canvasMessage}
           onClose={() => setShowCanvas(false)}
         />
-      </div>
+
+      {/* Edit Channel Modal */}
+      <EditChannelModal
+        isOpen={showEditChannel}
+        onClose={() => setShowEditChannel(false)}
+        onSuccess={handleChannelUpdated}
+        channel={currentChannel}
+      />
     </>
   );
 }

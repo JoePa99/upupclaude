@@ -59,9 +59,12 @@ export function OmniComposer({ assistants, onSendMessage, disabled }: OmniCompos
 
     if (lastAtIndex !== -1 && cursorPos - lastAtIndex <= 20) {
       const query = textBeforeCursor.slice(lastAtIndex + 1).toLowerCase();
-      const filtered = assistants.filter(a =>
-        a.name.toLowerCase().startsWith(query)
-      );
+      const filtered = assistants.filter(a => {
+        // Show all assistants when just @ is typed
+        if (query === '') return true;
+        // Use includes for more flexible matching (matches anywhere in name)
+        return a.name.toLowerCase().includes(query);
+      });
       setFilteredSuggestions(filtered);
       setShowSuggestions(filtered.length > 0);
     } else {
