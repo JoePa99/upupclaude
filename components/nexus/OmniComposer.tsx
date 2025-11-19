@@ -19,6 +19,7 @@ export function OmniComposer({ assistants, onSendMessage, disabled }: OmniCompos
   const [mentionedAgents, setMentionedAgents] = useState<Assistant[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<Assistant[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Get accent color based on mentioned agent
@@ -67,6 +68,7 @@ export function OmniComposer({ assistants, onSendMessage, disabled }: OmniCompos
       });
       setFilteredSuggestions(filtered);
       setShowSuggestions(filtered.length > 0);
+      setSelectedIndex(0); // Reset selection when suggestions change
     } else {
       setShowSuggestions(false);
     }
@@ -82,6 +84,31 @@ export function OmniComposer({ assistants, onSendMessage, disabled }: OmniCompos
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle keyboard navigation in suggestions dropdown
+    if (showSuggestions && filteredSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev + 1) % filteredSuggestions.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev - 1 + filteredSuggestions.length) % filteredSuggestions.length);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        insertMention(filteredSuggestions[selectedIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowSuggestions(false);
+        return;
+      }
+    }
+
+    // Handle normal Enter to send message
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -124,11 +151,15 @@ export function OmniComposer({ assistants, onSendMessage, disabled }: OmniCompos
             exit={{ opacity: 0, y: 10 }}
             className="mb-2 bg-white/90 backdrop-blur-2xl border border-white/95 rounded-3xl shadow-luminous p-2"
           >
-            {filteredSuggestions.map(assistant => (
+            {filteredSuggestions.map((assistant, index) => (
               <button
                 key={assistant.id}
                 onClick={() => insertMention(assistant)}
-                className="w-full px-4 py-3 text-left rounded-2xl hover:bg-white/70 transition-colors flex items-center gap-3"
+                className={`w-full px-4 py-3 text-left rounded-2xl transition-all flex items-center gap-3 ${
+                  index === selectedIndex
+                    ? 'bg-white shadow-md scale-[1.02]'
+                    : 'hover:bg-white/70'
+                }`}
               >
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-extrabold text-white shadow-md"
@@ -144,6 +175,11 @@ export function OmniComposer({ assistants, onSendMessage, disabled }: OmniCompos
                     {assistant.role}
                   </div>
                 </div>
+                {index === selectedIndex && (
+                  <div className="text-luminous-accent-purple text-sm">
+                    ⏎
+                  </div>
+                )}
               </button>
             ))}
           </motion.div>
