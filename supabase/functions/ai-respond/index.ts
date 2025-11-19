@@ -301,12 +301,19 @@ async function callAnthropic(assistant: any, conversationHistory: Array<{ role: 
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
+      'anthropic-beta': 'prompt-caching-2024-07-31', // Enable prompt caching
     },
     body: JSON.stringify({
       model: assistant.model_name,
-      system: systemPrompt,
+      system: [
+        {
+          type: 'text',
+          text: systemPrompt,
+          cache_control: { type: 'ephemeral' }, // Cache system prompt for 5 minutes
+        },
+      ],
       messages: truncatedHistory,
-      max_tokens: 8192, // Anthropic requires max_tokens, using generous default
+      max_tokens: 4096, // Reduced from 8192 for faster responses (adjust based on needs)
     }),
   });
 
