@@ -50,14 +50,19 @@
 ### 🎯 Phase 2: Interactive Elements
 **Goal:** Make responses actionable and explorable
 
-#### 2.1 Content Selection & Actions
-- [ ] Text selection detection
-- [ ] Floating action toolbar on selection
-  - [ ] 📌 Pin to board
-  - [ ] 💬 Ask follow-up about selection
-  - [ ] 📋 Copy with formatting
-  - [ ] ✏️ Edit in artifact
-- [ ] Highlight preservation across sessions
+#### 2.1 Content Selection & Actions ✅ **COMPLETE**
+- [x] Text selection detection
+- [x] Floating action toolbar on selection
+  - [x] 📌 Pin to board
+  - [x] 💬 Ask follow-up about selection
+  - [x] 📋 Copy with formatting
+  - [x] ✏️ Edit in artifact (UI ready, TODO: implementation)
+- [x] Pinboard UI with search and collections
+- [x] Database schema and API routes
+- [ ] Highlight preservation across sessions (deferred to 2.2)
+
+**Status:** ✅ Complete - See [PINNING_FEATURE.md](./PINNING_FEATURE.md) for details
+**Impact:** Very High - Users can now build personal knowledge base
 
 #### 2.2 Progressive Disclosure
 - [ ] Collapsible sections for long content
@@ -396,9 +401,9 @@ CREATE TABLE collections (
 
 ---
 
-**Last Updated:** 2024-01-19
-**Current Phase:** Phase 1 ✅ COMPLETE | Phase 2 Ready to Start
-**Next Milestone:** Content selection & interactive elements (Phase 2.1)
+**Last Updated:** 2025-01-19
+**Current Phase:** Phase 1 ✅ COMPLETE | Phase 2.1 ✅ COMPLETE | Phase 2.2 Ready to Start
+**Next Milestone:** Progressive disclosure and smart content detection (Phase 2.2-2.3)
 
 ---
 

@@ -1,12 +1,15 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Message as MessageType } from '@/types';
+import { SelectionToolbar } from './SelectionToolbar';
+import { useTextSelection } from '@/hooks/useTextSelection';
+import { usePinStore } from '@/stores/pinStore';
 
 interface MessageStreamProps {
   messages: MessageType[];
@@ -41,10 +44,47 @@ function CopyButton({ code }: { code: string }) {
  * NEXUS Message Stream - Center chat with glass cards
  * Human: Minimal text on glass
  * AI Agent: Super-Glass cards with collapsible reasoning + action buttons
+ * Now with text selection and pinning!
  */
 export function MessageStream({ messages, onArtifactOpen }: MessageStreamProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { selectedText, position, clearSelection } = useTextSelection(containerRef);
+  const { addPin, openPinboard } = usePinStore();
+  const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
+
+  const handlePin = async (text: string) => {
+    if (!currentMessageId) return;
+
+    await addPin({
+      user_id: 'current-user', // TODO: Get from auth context
+      message_id: currentMessageId,
+      content: text,
+      content_type: 'text',
+      collection: 'Quick Pins',
+    });
+
+    clearSelection();
+    openPinboard();
+  };
+
+  const handleAskFollowUp = (text: string) => {
+    // TODO: Implement ask follow-up - add to input with context
+    console.log('Ask follow-up about:', text);
+    clearSelection();
+  };
+
+  const handleCopy = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+  };
+
+  const handleEdit = (text: string) => {
+    // TODO: Open artifact editor with selected text
+    console.log('Edit in artifact:', text);
+    clearSelection();
+  };
+
   return (
-    <div className="flex-1 overflow-y-auto px-8 py-8 space-y-6">
+    <div ref={containerRef} className="flex-1 overflow-y-auto px-8 py-8 space-y-6">
       <AnimatePresence initial={false}>
         {messages.map((message, index) => (
           <MessageCard
@@ -52,9 +92,20 @@ export function MessageStream({ messages, onArtifactOpen }: MessageStreamProps) 
             message={message}
             index={index}
             onArtifactOpen={onArtifactOpen}
+            onMessageInteract={() => setCurrentMessageId(message.id)}
           />
         ))}
       </AnimatePresence>
+
+      {/* Selection Toolbar */}
+      <SelectionToolbar
+        selectedText={selectedText}
+        position={position}
+        onPin={handlePin}
+        onAskFollowUp={handleAskFollowUp}
+        onCopy={handleCopy}
+        onEdit={handleEdit}
+      />
     </div>
   );
 }
@@ -63,9 +114,10 @@ interface MessageCardProps {
   message: MessageType;
   index: number;
   onArtifactOpen?: (message: MessageType) => void;
+  onMessageInteract?: () => void;
 }
 
-function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
+function MessageCard({ message, index, onArtifactOpen, onMessageInteract }: MessageCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const isAI = message.authorType === 'assistant';
 
@@ -129,6 +181,7 @@ function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
       exit={{ opacity: 0, y: -20 }}
       transition={{ delay: index * 0.05 }}
       className="flex justify-start"
+      onMouseEnter={onMessageInteract}
     >
       <div className="max-w-3xl w-full">
         {/* Agent Header */}
