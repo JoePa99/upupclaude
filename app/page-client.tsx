@@ -290,11 +290,6 @@ export function PageClient({
               console.log('Adding message to state. Current count:', prev.length);
               return [...prev, transformed];
             });
-
-            // If this is an assistant message, remove from typing indicators
-            if (newMessage.author_type === 'assistant') {
-              setTypingAssistants((prev) => prev.filter((id) => id !== newMessage.author_id));
-            }
           }
         }
       )
@@ -337,8 +332,6 @@ export function PageClient({
       const data = await response.json();
 
       if (!response.ok) {
-        // Remove typing indicators on error
-        setTypingAssistants((prev) => prev.filter((id) => !mentions.includes(id)));
         throw new Error(data.error || 'Failed to send message');
       }
 
@@ -346,10 +339,6 @@ export function PageClient({
       if (data.aiResponses && data.aiResponses.length > 0) {
         const transformedAiResponses = data.aiResponses.map((msg: any) => transformMessage(msg));
         setMessages((prev) => [...prev, ...transformedAiResponses]);
-
-        // Remove typing indicators for assistants that responded
-        const respondedAssistantIds = data.aiResponses.map((msg: any) => msg.author_id);
-        setTypingAssistants((prev) => prev.filter((id) => !respondedAssistantIds.includes(id)));
       }
     } catch (error: any) {
       console.error('Error sending message:', error);
@@ -454,7 +443,6 @@ export function PageClient({
           message={canvasMessage}
           onClose={() => setShowCanvas(false)}
         />
-      </div>
 
       {/* Edit Channel Modal */}
       <EditChannelModal
