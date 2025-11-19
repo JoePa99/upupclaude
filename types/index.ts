@@ -65,3 +65,19 @@ export interface Workspace {
   users: User[];
   assistants: Assistant[];
 }
+
+export interface Pin {
+  id: string;
+  user_id: string;
+  message_id: string;
+  content: string;
+  content_type: 'text' | 'code' | 'table' | 'list';
+  collection?: string;
+  tags?: string[];
+  created_at: string;
+  metadata?: {
+    source_message?: string;
+    original_question?: string;
+    context?: string;
+  };
+}

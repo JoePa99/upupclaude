@@ -1,12 +1,17 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Message as MessageType } from '@/types';
+import { SelectionToolbar } from './SelectionToolbar';
+import { useTextSelection } from '@/hooks/useTextSelection';
+import { usePinStore } from '@/stores/pinStore';
+import { ExpandableCodeBlock } from './ExpandableCodeBlock';
+import { TableOfContents } from './TableOfContents';
 
 interface MessageStreamProps {
   messages: MessageType[];
@@ -41,10 +46,47 @@ function CopyButton({ code }: { code: string }) {
  * NEXUS Message Stream - Center chat with glass cards
  * Human: Minimal text on glass
  * AI Agent: Super-Glass cards with collapsible reasoning + action buttons
+ * Now with text selection and pinning!
  */
 export function MessageStream({ messages, onArtifactOpen }: MessageStreamProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { selectedText, position, clearSelection } = useTextSelection(containerRef);
+  const { addPin, openPinboard } = usePinStore();
+  const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
+
+  const handlePin = async (text: string) => {
+    if (!currentMessageId) return;
+
+    await addPin({
+      user_id: 'current-user', // TODO: Get from auth context
+      message_id: currentMessageId,
+      content: text,
+      content_type: 'text',
+      collection: 'Quick Pins',
+    });
+
+    clearSelection();
+    openPinboard();
+  };
+
+  const handleAskFollowUp = (text: string) => {
+    // TODO: Implement ask follow-up - add to input with context
+    console.log('Ask follow-up about:', text);
+    clearSelection();
+  };
+
+  const handleCopy = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+  };
+
+  const handleEdit = (text: string) => {
+    // TODO: Open artifact editor with selected text
+    console.log('Edit in artifact:', text);
+    clearSelection();
+  };
+
   return (
-    <div className="flex-1 overflow-y-auto px-8 py-8 space-y-6">
+    <div ref={containerRef} className="flex-1 overflow-y-auto px-8 py-8 space-y-6">
       <AnimatePresence initial={false}>
         {messages.map((message, index) => (
           <MessageCard
@@ -52,9 +94,20 @@ export function MessageStream({ messages, onArtifactOpen }: MessageStreamProps) 
             message={message}
             index={index}
             onArtifactOpen={onArtifactOpen}
+            onMessageInteract={() => setCurrentMessageId(message.id)}
           />
         ))}
       </AnimatePresence>
+
+      {/* Selection Toolbar */}
+      <SelectionToolbar
+        selectedText={selectedText}
+        position={position}
+        onPin={handlePin}
+        onAskFollowUp={handleAskFollowUp}
+        onCopy={handleCopy}
+        onEdit={handleEdit}
+      />
     </div>
   );
 }
@@ -63,9 +116,10 @@ interface MessageCardProps {
   message: MessageType;
   index: number;
   onArtifactOpen?: (message: MessageType) => void;
+  onMessageInteract?: () => void;
 }
 
-function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
+function MessageCard({ message, index, onArtifactOpen, onMessageInteract }: MessageCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const isAI = message.authorType === 'assistant';
 
@@ -129,6 +183,7 @@ function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
       exit={{ opacity: 0, y: -20 }}
       transition={{ delay: index * 0.05 }}
       className="flex justify-start"
+      onMouseEnter={onMessageInteract}
     >
       <div className="max-w-3xl w-full">
         {/* Agent Header */}
@@ -208,7 +263,10 @@ function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
           )}
 
           {/* Main Content */}
-          <div className="px-6 py-5">
+          <div className="px-6 py-5" data-message-id={message.id}>
+            {/* Table of Contents (auto-generates for messages with 3+ headings) */}
+            <TableOfContents messageId={message.id} minHeadings={3} />
+
             <div className="prose prose-sm max-w-none text-luminous-text-primary">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
@@ -220,27 +278,39 @@ function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
                     </p>
                   ),
 
-                  // Headings with Luminous Glass styling
-                  h1: ({ children }) => (
-                    <h1 className="text-3xl font-extrabold bg-gradient-to-r from-luminous-accent-cyan via-luminous-accent-purple to-luminous-accent-coral bg-clip-text text-transparent mb-4 mt-6 first:mt-0 pb-3 border-b border-luminous-text-tertiary/20">
-                      {children}
-                    </h1>
-                  ),
-                  h2: ({ children }) => (
-                    <h2 className="text-2xl font-bold text-luminous-text-primary mb-3 mt-5 first:mt-0">
-                      {children}
-                    </h2>
-                  ),
-                  h3: ({ children }) => (
-                    <h3 className="text-xl font-semibold text-luminous-text-primary mb-2 mt-4 first:mt-0">
-                      {children}
-                    </h3>
-                  ),
-                  h4: ({ children }) => (
-                    <h4 className="text-lg font-semibold text-luminous-text-secondary mb-2 mt-3 first:mt-0">
-                      {children}
-                    </h4>
-                  ),
+                  // Headings with Luminous Glass styling and auto-generated IDs
+                  h1: ({ children }) => {
+                    const id = `heading-${message.id}-${String(children).toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`;
+                    return (
+                      <h1 id={id} className="text-3xl font-extrabold bg-gradient-to-r from-luminous-accent-cyan via-luminous-accent-purple to-luminous-accent-coral bg-clip-text text-transparent mb-4 mt-6 first:mt-0 pb-3 border-b border-luminous-text-tertiary/20 scroll-mt-24">
+                        {children}
+                      </h1>
+                    );
+                  },
+                  h2: ({ children }) => {
+                    const id = `heading-${message.id}-${String(children).toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`;
+                    return (
+                      <h2 id={id} className="text-2xl font-bold text-luminous-text-primary mb-3 mt-5 first:mt-0 scroll-mt-24">
+                        {children}
+                      </h2>
+                    );
+                  },
+                  h3: ({ children }) => {
+                    const id = `heading-${message.id}-${String(children).toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`;
+                    return (
+                      <h3 id={id} className="text-xl font-semibold text-luminous-text-primary mb-2 mt-4 first:mt-0 scroll-mt-24">
+                        {children}
+                      </h3>
+                    );
+                  },
+                  h4: ({ children }) => {
+                    const id = `heading-${message.id}-${String(children).toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`;
+                    return (
+                      <h4 id={id} className="text-lg font-semibold text-luminous-text-secondary mb-2 mt-3 first:mt-0 scroll-mt-24">
+                        {children}
+                      </h4>
+                    );
+                  },
 
                   // Text formatting
                   strong: ({ children }) => (
@@ -252,39 +322,21 @@ function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
                     <em className="text-luminous-text-secondary italic">{children}</em>
                   ),
 
-                  // Code blocks with syntax highlighting
+                  // Code blocks with syntax highlighting and expandable UI
                   code: ({ node, inline, className, children, ...props }: any) => {
                     const match = /language-(\w+)/.exec(className || '');
                     const language = match ? match[1] : '';
                     const codeString = String(children).replace(/\n$/, '');
 
                     return !inline && language ? (
-                      <div className="my-4 rounded-2xl overflow-hidden border border-white/70 shadow-luminous bg-white/40 backdrop-blur-xl">
-                        <div className="bg-gradient-to-r from-luminous-accent-cyan/20 via-luminous-accent-purple/20 to-luminous-accent-coral/20 px-5 py-3 border-b border-white/50 flex items-center justify-between">
-                          <span className="text-xs font-bold text-luminous-text-primary uppercase tracking-wider flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-luminous-accent-cyan animate-pulse"></span>
-                            {language}
-                          </span>
-                          <CopyButton code={codeString} />
-                        </div>
-                        <div className="bg-[#1E1E1E] p-4">
-                          <SyntaxHighlighter
-                            style={vscDarkPlus}
-                            language={language}
-                            PreTag="div"
-                            className="!m-0 !bg-transparent text-sm"
-                            customStyle={{
-                              margin: 0,
-                              padding: 0,
-                              background: 'transparent',
-                            }}
-                            showLineNumbers
-                            {...props}
-                          >
-                            {codeString}
-                          </SyntaxHighlighter>
-                        </div>
-                      </div>
+                      <ExpandableCodeBlock
+                        code={codeString}
+                        language={language}
+                        onCopy={async (code) => {
+                          await navigator.clipboard.writeText(code);
+                        }}
+                        previewLines={10}
+                      />
                     ) : (
                       <code
                         className="px-2 py-0.5 rounded-lg bg-luminous-accent-cyan/10 text-luminous-accent-cyan font-mono text-sm border border-luminous-accent-cyan/30 font-semibold"

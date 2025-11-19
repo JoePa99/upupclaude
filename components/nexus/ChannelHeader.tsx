@@ -8,6 +8,8 @@ interface ChannelHeaderProps {
   onClearHistory?: () => void;
   onEditChannel?: () => void;
   onDeleteChannel?: () => void;
+  onTogglePinboard?: () => void;
+  pinCount?: number;
 }
 
 /**
@@ -18,6 +20,8 @@ export function ChannelHeader({
   onClearHistory,
   onEditChannel,
   onDeleteChannel,
+  onTogglePinboard,
+  pinCount = 0,
 }: ChannelHeaderProps) {
   return (
     <motion.div
@@ -39,6 +43,23 @@ export function ChannelHeader({
 
       {/* Controls */}
       <div className="flex items-center gap-2">
+        {/* Pinboard Button */}
+        {onTogglePinboard && (
+          <motion.button
+            onClick={onTogglePinboard}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-luminous-accent-cyan/20 to-luminous-accent-purple/20 hover:from-luminous-accent-cyan/30 hover:to-luminous-accent-purple/30 border border-white/70 text-luminous-text-primary text-sm font-bold transition-all flex items-center gap-2"
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <span className="text-base">📌</span>
+            <span>Pinboard</span>
+            {pinCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-luminous-accent-cyan text-white text-xs font-extrabold">
+                {pinCount}
+              </span>
+            )}
+          </motion.button>
+        )}
         {channel.isDm && onClearHistory && (
           <motion.button
             onClick={onClearHistory}
