@@ -148,12 +148,12 @@ function MessageCard({ message, index, onArtifactOpen, onMessageInteract }: Mess
               {message.author.name.charAt(0).toUpperCase()}
             </div>
           </div>
-          <motion.div
+          <div
             className="bg-white/50 backdrop-blur-xl border border-white/70 rounded-3xl px-5 py-4 shadow-md"
-            whileHover={{ scale: 1.005, y: -1 }}
+            style={{ userSelect: 'text' }}
           >
             <p className="text-luminous-text-primary font-medium">{message.content}</p>
-          </motion.div>
+          </div>
         </div>
       </motion.div>
     );
@@ -213,10 +213,9 @@ function MessageCard({ message, index, onArtifactOpen, onMessageInteract }: Mess
         </div>
 
         {/* Super-Glass Card */}
-        <motion.div
+        <div
           className="bg-white/80 backdrop-blur-2xl border border-white/90 rounded-luminous shadow-super-glass overflow-hidden"
-          whileHover={{ scale: 1.002, y: -2 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          style={{ userSelect: 'text' }}
         >
           {/* Reasoning Section (Collapsible) */}
           {reasoning && (
@@ -455,7 +454,7 @@ function MessageCard({ message, index, onArtifactOpen, onMessageInteract }: Mess
               </motion.button>
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
     </motion.div>
   );
