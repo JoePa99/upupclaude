@@ -102,6 +102,17 @@ export function OmniComposer({ assistants, onSendMessage, disabled }: OmniCompos
     inputRef.current?.focus();
   };
 
+  // Get color for assistant avatar
+  const getAssistantColor = (colorTheme?: string) => {
+    const colorMap: Record<string, string> = {
+      cyan: '#56E3FF',
+      purple: '#C658FF',
+      coral: '#FF5A5F',
+      yellow: '#FFC107',
+    };
+    return colorMap[colorTheme || 'purple'] || colorMap.purple;
+  };
+
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-3xl px-6">
       {/* Agent Suggestions */}
@@ -111,17 +122,17 @@ export function OmniComposer({ assistants, onSendMessage, disabled }: OmniCompos
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="mb-2 bg-white/80 backdrop-blur-2xl border border-white/90 rounded-3xl shadow-luminous p-2"
+            className="mb-2 bg-white/90 backdrop-blur-2xl border border-white/95 rounded-3xl shadow-luminous p-2"
           >
             {filteredSuggestions.map(assistant => (
               <button
                 key={assistant.id}
                 onClick={() => insertMention(assistant)}
-                className="w-full px-4 py-3 text-left rounded-2xl hover:bg-white/60 transition-colors flex items-center gap-3"
+                className="w-full px-4 py-3 text-left rounded-2xl hover:bg-white/70 transition-colors flex items-center gap-3"
               >
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-extrabold text-white"
-                  style={{ backgroundColor: `var(--luminous-accent-${assistant.colorTheme || 'purple'}, #C658FF)` }}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-extrabold text-white shadow-md"
+                  style={{ backgroundColor: getAssistantColor(assistant.colorTheme) }}
                 >
                   {assistant.name.charAt(0).toUpperCase()}
                 </div>
@@ -162,7 +173,7 @@ export function OmniComposer({ assistants, onSendMessage, disabled }: OmniCompos
                 <div
                   key={agent.id}
                   className="px-3 py-1 rounded-full text-xs font-bold text-white flex items-center gap-2"
-                  style={{ backgroundColor: `var(--luminous-accent-${agent.colorTheme || 'purple'}, #C658FF)` }}
+                  style={{ backgroundColor: getAssistantColor(agent.colorTheme) }}
                 >
                   <span>{agent.name}</span>
                   <span className="opacity-70">{agent.role}</span>
