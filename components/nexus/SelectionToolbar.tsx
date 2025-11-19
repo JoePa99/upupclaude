@@ -36,6 +36,7 @@ export function SelectionToolbar({
   if (!position || !selectedText) return null;
 
   const handleCopy = () => {
+    console.log('📋 Toolbar Copy clicked:', selectedText.substring(0, 50));
     onCopy(selectedText);
     setCopied(true);
   };
@@ -59,7 +60,10 @@ export function SelectionToolbar({
         <ToolbarButton
           icon="📌"
           label="Pin"
-          onClick={() => onPin(selectedText)}
+          onClick={() => {
+            console.log('📌 Toolbar Pin clicked:', selectedText.substring(0, 50));
+            onPin(selectedText);
+          }}
           tooltip="Save to pinboard"
         />
 
@@ -67,7 +71,10 @@ export function SelectionToolbar({
         <ToolbarButton
           icon="💬"
           label="Ask"
-          onClick={() => onAskFollowUp(selectedText)}
+          onClick={() => {
+            console.log('💬 Toolbar Ask clicked:', selectedText.substring(0, 50));
+            onAskFollowUp(selectedText);
+          }}
           tooltip="Ask AI about this"
         />
 
@@ -84,7 +91,10 @@ export function SelectionToolbar({
         <ToolbarButton
           icon="✏️"
           label="Edit"
-          onClick={() => onEdit(selectedText)}
+          onClick={() => {
+            console.log('✏️ Toolbar Edit clicked:', selectedText.substring(0, 50));
+            onEdit(selectedText);
+          }}
           tooltip="Edit in artifact"
         />
       </motion.div>

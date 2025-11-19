@@ -46,7 +46,10 @@ export function ChannelHeader({
         {/* Pinboard Button */}
         {onTogglePinboard && (
           <motion.button
-            onClick={onTogglePinboard}
+            onClick={() => {
+              console.log('📌 Pinboard button clicked!');
+              onTogglePinboard();
+            }}
             className="px-4 py-2 rounded-xl bg-gradient-to-r from-luminous-accent-cyan/20 to-luminous-accent-purple/20 hover:from-luminous-accent-cyan/30 hover:to-luminous-accent-purple/30 border border-white/70 text-luminous-text-primary text-sm font-bold transition-all flex items-center gap-2"
             whileHover={{ scale: 1.02, y: -1 }}
             whileTap={{ scale: 0.98 }}

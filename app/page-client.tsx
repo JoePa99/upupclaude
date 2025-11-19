@@ -408,6 +408,7 @@ export function PageClient({
             <MessageStream
               messages={channelMessages}
               onArtifactOpen={handleArtifactOpen}
+              currentUserId={currentUserId}
             />
 
             {/* Typing Indicators */}
