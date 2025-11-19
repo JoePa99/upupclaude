@@ -64,12 +64,15 @@
 **Status:** ✅ Complete - See [PINNING_FEATURE.md](./PINNING_FEATURE.md) for details
 **Impact:** Very High - Users can now build personal knowledge base
 
-#### 2.2 Progressive Disclosure
-- [ ] Collapsible sections for long content
-- [ ] Expandable code blocks with preview
-- [ ] "Show more/less" for lengthy responses
-- [ ] Table of contents for long-form content
-- [ ] Section anchors for navigation
+#### 2.2 Progressive Disclosure ✅ **COMPLETE**
+- [x] Collapsible sections for long content (CollapsibleSection component)
+- [x] Expandable code blocks with preview (ExpandableCodeBlock - 10 line preview)
+- [x] "Show more/less" for lengthy responses (ExpandableText component)
+- [x] Table of contents for long-form content (auto-generates with 3+ headings)
+- [x] Section anchors for navigation (automatic ID generation + smooth scroll)
+
+**Status:** ✅ Complete - See [PROGRESSIVE_DISCLOSURE.md](./PROGRESSIVE_DISCLOSURE.md) for details
+**Impact:** High - Makes long-form content much more consumable
 
 #### 2.3 Smart Content Detection
 - [ ] Automatically detect content types:
@@ -402,8 +405,8 @@ CREATE TABLE collections (
 ---
 
 **Last Updated:** 2025-01-19
-**Current Phase:** Phase 1 ✅ COMPLETE | Phase 2.1 ✅ COMPLETE | Phase 2.2 Ready to Start
-**Next Milestone:** Progressive disclosure and smart content detection (Phase 2.2-2.3)
+**Current Phase:** Phase 1 ✅ | Phase 2.1 ✅ | Phase 2.2 ✅ COMPLETE | Phase 2.3 Ready
+**Next Milestone:** Smart content detection and inline editing (Phase 2.3-2.4)
 
 ---
 
