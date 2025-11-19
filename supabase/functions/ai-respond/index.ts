@@ -327,7 +327,12 @@ async function callAnthropic(assistant: any, conversationHistory: Array<{ role: 
   return data.content[0].text;
 }
 
-async function callGoogle(assistant: any, conversationHistory: Array<{ role: string; content: string }>, systemPrompt: string): Promise<string> {
+async function callGoogle(
+  assistant: any,
+  conversationHistory: Array<{ role: string; content: string }>,
+  systemPrompt: string,
+  googleCorpusId?: string
+): Promise<string> {
   const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
   if (!apiKey) {
     throw new Error('Google AI API key not configured');
@@ -347,6 +352,25 @@ async function callGoogle(assistant: any, conversationHistory: Array<{ role: str
     parts: [{ text: idx === 0 ? systemPrompt + '\n\n' + msg.content : msg.content }],
   }));
 
+  const requestBody: any = {
+    contents,
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 8192,
+    },
+  };
+
+  // Add Google Search Retrieval (File Search) tool if corpus ID is provided
+  // This enables Gemini to ground responses in workspace-specific knowledge
+  if (googleCorpusId) {
+    console.log(`📚 [GEMINI-FILE-SEARCH] Using corpus: ${googleCorpusId}`);
+    requestBody.tools = [{
+      googleSearchRetrieval: {
+        corpusId: googleCorpusId,
+      }
+    }];
+  }
+
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${assistant.model_name}:generateContent?key=${apiKey}`,
     {
@@ -354,10 +378,7 @@ async function callGoogle(assistant: any, conversationHistory: Array<{ role: str
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        contents,
-        // Let Google use optimal defaults for temperature and maxOutputTokens
-      }),
+      body: JSON.stringify(requestBody),
     }
   );
 
@@ -622,31 +643,68 @@ serve(async (req) => {
       aiResponse = await generateImage(userMessage, supabaseClient);
     } else {
       // Standard text response flow
-      // Fetch conversation history and context in parallel (they don't depend on each other)
+
+      // Fetch workspace to check for Google Corpus ID
+      const { data: workspace } = await supabaseClient
+        .from('workspaces')
+        .select('google_corpus_id')
+        .eq('id', assistant.workspace_id)
+        .single();
+
+      const googleCorpusId = workspace?.google_corpus_id;
+      const useGeminiFileSearch = assistant.model_provider === 'google' && googleCorpusId;
+
       let perfStart = Date.now();
-      const [conversationHistory, contextChunks] = await Promise.all([
-        fetchConversationHistory(
+      let conversationHistory: Array<{ role: string; content: string }>;
+      let contextChunks: ContextChunk[] = [];
+      let systemPrompt: string;
+
+      // For Google with Corpus ID, skip custom RAG and use Gemini File Search
+      if (useGeminiFileSearch) {
+        console.log('🚀 [GEMINI-FILE-SEARCH] Using native Gemini grounding (skipping custom RAG)');
+
+        // Only fetch conversation history (no custom RAG retrieval)
+        conversationHistory = await fetchConversationHistory(
           supabaseClient,
           channelId,
           assistantId,
-          15 // Last 15 messages (reduced from 20 for cost control)
-        ),
-        retrieveContext(
-          supabaseClient,
-          assistant.workspace_id,
-          userMessage,
-          3 // Top 3 most relevant chunks (reduced from 5 for cost control)
-        ),
-      ]);
-      console.log(`⏱️ [PERF] History + Context (parallel): ${Date.now() - perfStart}ms`);
+          15 // Last 15 messages
+        );
 
-      // Build contextual system prompt
-      const systemPrompt = buildContextualPrompt(
-        assistant.system_prompt,
-        assistant.name,
-        assistant.role,
-        contextChunks
-      );
+        // Use simple system prompt without custom context (Gemini will handle grounding)
+        systemPrompt = `# YOU ARE: ${assistant.name}\n\n${assistant.system_prompt}`;
+
+        console.log(`⏱️ [PERF] History only: ${Date.now() - perfStart}ms`);
+      } else {
+        // For other providers (OpenAI, Anthropic) or Google without corpus, use custom RAG
+        console.log('📚 [CUSTOM-RAG] Using traditional RAG with embeddings');
+
+        // Fetch conversation history and context in parallel (they don't depend on each other)
+        [conversationHistory, contextChunks] = await Promise.all([
+          fetchConversationHistory(
+            supabaseClient,
+            channelId,
+            assistantId,
+            15 // Last 15 messages (reduced from 20 for cost control)
+          ),
+          retrieveContext(
+            supabaseClient,
+            assistant.workspace_id,
+            userMessage,
+            3 // Top 3 most relevant chunks (reduced from 5 for cost control)
+          ),
+        ]);
+
+        // Build contextual system prompt with retrieved chunks
+        systemPrompt = buildContextualPrompt(
+          assistant.system_prompt,
+          assistant.name,
+          assistant.role,
+          contextChunks
+        );
+
+        console.log(`⏱️ [PERF] History + Context (parallel): ${Date.now() - perfStart}ms`);
+      }
 
       // Call the appropriate AI provider with conversation history and context
       console.log('🔄 [AI-RESPOND] Calling', assistant.model_provider, 'API with context and history...');
@@ -657,7 +715,7 @@ serve(async (req) => {
       } else if (assistant.model_provider === 'anthropic') {
         aiResponse = await callAnthropic(assistant, conversationHistory, systemPrompt);
       } else if (assistant.model_provider === 'google') {
-        aiResponse = await callGoogle(assistant, conversationHistory, systemPrompt);
+        aiResponse = await callGoogle(assistant, conversationHistory, systemPrompt, googleCorpusId);
       } else {
         throw new Error(`Unsupported AI provider: ${assistant.model_provider}`);
       }
