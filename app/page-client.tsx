@@ -3,11 +3,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { transformMessage } from '@/lib/transformers';
-import { Sidebar } from '@/components/Sidebar';
-import { ChannelHeader } from '@/components/ChannelHeader';
-import { Message } from '@/components/Message';
-import { ChatInput } from '@/components/ChatInput';
-import { EditChannelModal } from '@/components/EditChannelModal';
+import { MeshGradientBackground } from '@/components/nexus/MeshGradientBackground';
+import { NexusSidebar } from '@/components/nexus/NexusSidebar';
+import { MessageStream } from '@/components/nexus/MessageStream';
+import { OmniComposer } from '@/components/nexus/OmniComposer';
+import { AdaptiveCanvas } from '@/components/nexus/AdaptiveCanvas';
 import type { Channel, Message as MessageType, Workspace } from '@/types';
 
 interface PageClientProps {
@@ -17,6 +17,10 @@ interface PageClientProps {
   currentUserId: string;
 }
 
+/**
+ * NEXUS OS - Main Application Layout
+ * Luminous Glass aesthetic with Sidebar, Stream, Omni-Composer, and Adaptive Canvas
+ */
 export function PageClient({
   initialWorkspace,
   initialChannel,
@@ -27,8 +31,8 @@ export function PageClient({
   const [currentChannel, setCurrentChannel] = useState<Channel>(initialChannel);
   const [messages, setMessages] = useState<MessageType[]>(initialMessages);
   const [sending, setSending] = useState(false);
-  const [typingAssistants, setTypingAssistants] = useState<string[]>([]);
-  const [showEditChannel, setShowEditChannel] = useState(false);
+  const [canvasMessage, setCanvasMessage] = useState<MessageType | null>(null);
+  const [showCanvas, setShowCanvas] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -87,113 +91,6 @@ export function PageClient({
     }
   };
 
-  // Handle assistant creation
-  const handleAssistantCreated = async () => {
-    // Refresh assistants list
-    const { data: assistants } = await (supabase
-      .from('assistants') as any)
-      .select('*')
-      .eq('workspace_id', workspace.id);
-
-    if (assistants) {
-      const { transformAssistants } = await import('@/lib/transformers');
-      const transformedAssistants = transformAssistants(assistants);
-
-      setWorkspace({
-        ...workspace,
-        assistants: transformedAssistants,
-      });
-
-      // Also update current channel's assistants
-      setCurrentChannel({
-        ...currentChannel,
-        assistants: transformedAssistants,
-      });
-    }
-  };
-
-  // Handle channel creation
-  const handleChannelCreated = async () => {
-    // Refresh channels list with assistant relationships
-    const { data: channels } = await (supabase
-      .from('channels') as any)
-      .select(`
-        *,
-        channel_assistants (
-          assistant_id
-        )
-      `)
-      .eq('workspace_id', workspace.id)
-      .order('created_at', { ascending: true });
-
-    if (channels) {
-      const { transformChannels } = await import('@/lib/transformers');
-      const transformedChannels = transformChannels(channels, workspace.assistants);
-
-      setWorkspace({
-        ...workspace,
-        channels: transformedChannels,
-      });
-    }
-  };
-
-  // Handle channel update
-  const handleEditChannel = () => {
-    setShowEditChannel(true);
-  };
-
-  const handleChannelUpdated = async () => {
-    // Refresh the channel data
-    await handleChannelCreated();
-
-    // Also refresh the current channel with assistant relationships
-    const { data: updatedChannel } = await (supabase
-      .from('channels') as any)
-      .select(`
-        *,
-        channel_assistants (
-          assistant_id
-        )
-      `)
-      .eq('id', currentChannel.id)
-      .single();
-
-    if (updatedChannel) {
-      const { transformChannels } = await import('@/lib/transformers');
-      const [transformed] = transformChannels([updatedChannel], workspace.assistants);
-      setCurrentChannel(transformed);
-    }
-  };
-
-  // Handle channel deletion
-  const handleDeleteChannel = async () => {
-    if (!confirm('Are you sure you want to delete this channel? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/channels/${currentChannel.id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to delete channel');
-      }
-
-      // Refresh channels list
-      await handleChannelCreated();
-
-      // Navigate to the first available channel
-      const firstChannel = workspace.channels.find(c => c.id !== currentChannel.id);
-      if (firstChannel) {
-        setCurrentChannel(firstChannel);
-      }
-    } catch (error: any) {
-      console.error('Error deleting channel:', error);
-      alert(error.message || 'Failed to delete channel');
-    }
-  };
 
   // Load messages when channel changes
   useEffect(() => {
@@ -264,11 +161,6 @@ export function PageClient({
               console.log('Adding message to state. Current count:', prev.length);
               return [...prev, transformed];
             });
-
-            // If this is an assistant message, remove from typing indicators
-            if (newMessage.author_type === 'assistant') {
-              setTypingAssistants((prev) => prev.filter((id) => id !== newMessage.author_id));
-            }
           }
         }
       )
@@ -286,18 +178,11 @@ export function PageClient({
     (m) => m.channelId === currentChannel.id
   );
 
-  const handleSendMessage = async (content: string, mentions: string[], command?: string) => {
+  const handleSendMessage = async (content: string, mentions: string[]) => {
     if (sending) return;
 
     setSending(true);
     try {
-      console.log('Sending message:', { channelId: currentChannel.id, content, mentions, command });
-
-      // Add typing indicators for mentioned assistants
-      if (mentions && mentions.length > 0) {
-        setTypingAssistants((prev) => [...new Set([...prev, ...mentions])]);
-      }
-
       const response = await fetch('/api/messages/send', {
         method: 'POST',
         headers: {
@@ -307,34 +192,20 @@ export function PageClient({
           channelId: currentChannel.id,
           content,
           mentions,
-          command,
         }),
       });
 
       const data = await response.json();
-      console.log('Send response:', data);
 
       if (!response.ok) {
-        // Remove typing indicators on error
-        setTypingAssistants((prev) => prev.filter((id) => !mentions.includes(id)));
         throw new Error(data.error || 'Failed to send message');
       }
 
       // If AI responses were returned, add them to state immediately
-      // This is more reliable than waiting for Realtime
       if (data.aiResponses && data.aiResponses.length > 0) {
-        console.log('Adding', data.aiResponses.length, 'AI response(s) to state');
         const transformedAiResponses = data.aiResponses.map((msg: any) => transformMessage(msg));
         setMessages((prev) => [...prev, ...transformedAiResponses]);
-
-        // Remove typing indicators for assistants that responded
-        const respondedAssistantIds = data.aiResponses.map((msg: any) => msg.author_id);
-        setTypingAssistants((prev) => prev.filter((id) => !respondedAssistantIds.includes(id)));
       }
-
-      // Message will be added via Realtime subscription
-      // AI responses (if any) will also appear via Realtime (as backup)
-      console.log('Message sent successfully');
     } catch (error: any) {
       console.error('Error sending message:', error);
       alert(error.message || 'Failed to send message');
@@ -343,128 +214,52 @@ export function PageClient({
     }
   };
 
-  const handleClearHistory = async () => {
-    if (!currentChannel.isDm) return;
-
-    const confirmed = confirm(
-      'Are you sure you want to clear this conversation history? This action cannot be undone.'
-    );
-
-    if (!confirmed) return;
-
-    try {
-      const response = await fetch(`/api/channels/${currentChannel.id}/clear`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to clear history');
-      }
-
-      // Remove messages from state
-      setMessages((prev) => prev.filter((m) => m.channelId !== currentChannel.id));
-    } catch (error: any) {
-      console.error('Error clearing history:', error);
-      alert(error.message || 'Failed to clear history');
-    }
+  const handleArtifactOpen = (message: MessageType) => {
+    setCanvasMessage(message);
+    setShowCanvas(true);
   };
 
   return (
-    <div className="flex h-screen overflow-hidden relative">
-      <Sidebar
-        workspace={workspace}
-        currentChannel={currentChannel}
-        currentUser={currentUser}
-        onChannelSelect={setCurrentChannel}
-        onAssistantCreated={handleAssistantCreated}
-        onChannelCreated={handleChannelCreated}
-      />
+    <>
+      {/* Mesh Gradient Background */}
+      <MeshGradientBackground />
 
-      <div className="flex-1 flex flex-col relative z-10">
-        <ChannelHeader
-          channel={currentChannel}
-          onClearHistory={handleClearHistory}
-          onEditChannel={handleEditChannel}
-          onDeleteChannel={handleDeleteChannel}
+      {/* Main Layout */}
+      <div className="relative z-10 flex h-screen overflow-hidden">
+        {/* Sidebar - Detached Glass Panel */}
+        <NexusSidebar
+          workspace={workspace}
+          currentChannel={currentChannel}
+          currentUser={currentUser}
+          onChannelSelect={setCurrentChannel}
         />
 
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-5xl mx-auto">
-            {channelMessages.length === 0 ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="text-6xl mb-4 opacity-20">💬</div>
-                  <h3 className="text-xl font-serif font-semibold text-foreground mb-2">
-                    No messages yet
-                  </h3>
-                  <p className="text-foreground-secondary">
-                    Start a conversation by mentioning an AI assistant
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="py-4">
-                {channelMessages.map((message, index) => (
-                  <Message key={message.id} message={message} index={index} />
-                ))}
-                {typingAssistants.length > 0 &&
-                  typingAssistants.map((assistantId) => {
-                    const assistant = workspace.assistants.find((a) => a.id === assistantId);
-                    if (!assistant) return null;
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col relative pb-32">
+          {/* Message Stream */}
+          <MessageStream
+            messages={channelMessages}
+            onArtifactOpen={handleArtifactOpen}
+          />
 
-                    return (
-                      <div key={`typing-${assistantId}`} className="px-6 py-2 opacity-70">
-                        <div className="flex items-start gap-4">
-                          <div className="w-9 h-9 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
-                            <span className="text-sm font-medium text-accent">
-                              {assistant.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-foreground text-sm">
-                                {assistant.name}
-                              </span>
-                              <span className="text-xs text-foreground-tertiary">
-                                {assistant.role}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <div className="flex gap-1">
-                                <span className="w-2 h-2 bg-foreground-secondary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                                <span className="w-2 h-2 bg-foreground-secondary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                                <span className="w-2 h-2 bg-foreground-secondary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                              </div>
-                              <span className="text-xs text-foreground-tertiary ml-2">thinking...</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                {/* Scroll anchor */}
-                <div ref={messagesEndRef} />
-              </div>
-            )}
-          </div>
+          {/* Scroll anchor */}
+          <div ref={messagesEndRef} />
         </div>
 
-        <ChatInput
+        {/* Omni-Composer - Floating Pill Input */}
+        <OmniComposer
           assistants={currentChannel.assistants}
-          channelName={currentChannel.name}
-          isDm={currentChannel.isDm}
-          dmAssistantId={currentChannel.dmAssistantId}
           onSendMessage={handleSendMessage}
+          disabled={sending}
+        />
+
+        {/* Adaptive Canvas - Slide-out Panel */}
+        <AdaptiveCanvas
+          isOpen={showCanvas}
+          message={canvasMessage}
+          onClose={() => setShowCanvas(false)}
         />
       </div>
-
-      {/* Edit Channel Modal */}
-      <EditChannelModal
-        isOpen={showEditChannel}
-        onClose={() => setShowEditChannel(false)}
-        onSuccess={handleChannelUpdated}
-        channel={currentChannel}
-      />
-    </div>
+    </>
   );
 }

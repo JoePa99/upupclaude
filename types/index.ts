@@ -23,6 +23,7 @@ export interface Assistant {
   enable_image_generation?: boolean;
   enable_web_search?: boolean;
   enable_deep_research?: boolean;
+  colorTheme?: 'cyan' | 'purple' | 'coral' | 'yellow';
 }
 
 export type SlashCommand = 'image' | 'search' | 'research';
@@ -38,6 +39,11 @@ export interface Message {
   command?: SlashCommand;
   timestamp: Date;
   countsTowardLimit: boolean;
+  metadata?: {
+    artifact_type?: string;
+    content?: any;
+    reasoning?: string;
+  };
 }
 
 export interface Channel {
