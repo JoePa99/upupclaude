@@ -443,7 +443,7 @@ export function PageClient({
 
         {/* Omni-Composer - Floating Pill Input */}
         <OmniComposer
-          assistants={currentChannel.assistants}
+          assistants={workspace.assistants}
           onSendMessage={handleSendMessage}
           disabled={sending}
         />
