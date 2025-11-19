@@ -30,6 +30,29 @@ export function NexusSidebar({
 }: NexusSidebarProps) {
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showCreateAssistant, setShowCreateAssistant] = useState(false);
+  const [loadingDM, setLoadingDM] = useState<string | null>(null);
+
+  const handleAssistantClick = async (assistant: Assistant) => {
+    if (loadingDM) return; // Prevent multiple clicks
+
+    setLoadingDM(assistant.id);
+    try {
+      const response = await fetch(`/api/channels/dm/${assistant.id}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create DM channel');
+      }
+
+      // Navigate to the DM channel
+      onChannelSelect(data.channel);
+    } catch (error: any) {
+      console.error('Error creating DM channel:', error);
+      alert(error.message || 'Failed to create DM channel');
+    } finally {
+      setLoadingDM(null);
+    }
+  };
 
   return (
     <>
@@ -124,6 +147,72 @@ export function NexusSidebar({
                           {channel.description}
                         </div>
                       )}
+                    </div>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </motion.div>
+
+          {/* AI Assistants */}
+          <motion.div
+            className="mt-4 bg-white/65 backdrop-blur-2xl border border-white/80 rounded-luminous shadow-luminous p-3 space-y-1"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="flex items-center justify-between px-2 py-1.5">
+              <h2 className="text-xs font-extrabold tracking-wider uppercase text-luminous-text-secondary">
+                AI Assistants
+              </h2>
+            </div>
+
+            {workspace.assistants.map((assistant, index) => {
+              // Get color for assistant avatar
+              const getAssistantColor = (colorTheme?: string) => {
+                const colorMap: Record<string, string> = {
+                  cyan: '#56E3FF',
+                  purple: '#C658FF',
+                  coral: '#FF5A5F',
+                  yellow: '#FFC107',
+                };
+                return colorMap[colorTheme || 'purple'] || colorMap.purple;
+              };
+
+              return (
+                <motion.button
+                  key={assistant.id}
+                  onClick={() => handleAssistantClick(assistant)}
+                  disabled={loadingDM === assistant.id}
+                  className="w-full px-3 py-2.5 rounded-xl text-left transition-all hover:bg-white/40 disabled:opacity-50 disabled:cursor-wait"
+                  whileHover={{ scale: 1.01, x: 2 }}
+                  whileTap={{ scale: 0.99 }}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: (workspace.channels.length + index) * 0.03 }}
+                  title="Click to start a direct message"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold text-white shadow-md"
+                      style={{ backgroundColor: getAssistantColor(assistant.colorTheme) }}
+                    >
+                      {loadingDM === assistant.id ? (
+                        <div className="animate-spin">⏳</div>
+                      ) : (
+                        assistant.name.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-xs text-luminous-text-primary truncate">
+                        {assistant.name}
+                      </div>
+                      <div className="text-xs text-luminous-text-tertiary truncate">
+                        {loadingDM === assistant.id ? 'Opening DM...' : assistant.role}
+                      </div>
+                    </div>
+                    <div className="text-luminous-text-tertiary opacity-0 group-hover:opacity-100 transition-opacity">
+                      💬
                     </div>
                   </div>
                 </motion.button>
