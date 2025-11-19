@@ -443,6 +443,7 @@ export function PageClient({
           message={canvasMessage}
           onClose={() => setShowCanvas(false)}
         />
+      </div>
 
       {/* Edit Channel Modal */}
       <EditChannelModal
