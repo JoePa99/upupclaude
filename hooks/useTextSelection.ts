@@ -16,7 +16,6 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
   const [selectedText, setSelectedText] = useState('');
   const [position, setPosition] = useState<SelectionPosition | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
 
   // Continuously restore selection while toolbar is visible
   useEffect(() => {
@@ -85,7 +84,6 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
       }
     };
 
-    // Clear selection when clicking (starting new selection)
     const handleMouseDown = (e: MouseEvent) => {
       // Don't clear if clicking within the toolbar area
       const target = e.target as HTMLElement;
@@ -123,6 +121,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
   };
 
   const restoreSelection = () => {
+    // Not needed with CSS Highlight API, but keep for compatibility
     if (savedRangeRef.current) {
       try {
         const selection = window.getSelection();
@@ -136,3 +135,4 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
 
   return { selectedText, position, clearSelection, restoreSelection };
 }
+
