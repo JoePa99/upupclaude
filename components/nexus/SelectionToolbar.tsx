@@ -53,11 +53,24 @@ export function SelectionToolbar({
           e.preventDefault();
           e.stopPropagation();
         }}
+        onMouseMove={(e) => {
+          // Prevent mouse movement from triggering selection changes
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onMouseEnter={(e) => {
+          // Prevent mouse enter from triggering selection changes
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         style={{
           position: 'fixed',
           left: position.x,
           top: position.y - 60, // Position above selection
           zIndex: 9999,
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          MozUserSelect: 'none',
         }}
         className="flex items-center gap-1 bg-white/95 backdrop-blur-2xl border-2 border-white/90 rounded-2xl shadow-super-glass px-2 py-2"
       >
@@ -119,8 +132,18 @@ function ToolbarButton({ icon, label, onClick, tooltip, highlighted }: ToolbarBu
   return (
     <motion.button
       onClick={onClick}
+      onMouseDown={(e) => {
+        // Prevent button clicks from clearing the text selection
+        e.preventDefault();
+        e.stopPropagation();
+      }}
       whileHover={{ scale: 1.05, y: -2 }}
       whileTap={{ scale: 0.95 }}
+      style={{
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+      }}
       className={`
         flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs
         transition-all duration-200
