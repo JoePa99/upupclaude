@@ -10,47 +10,13 @@ interface SelectionPosition {
 /**
  * Hook to detect text selection and provide selection position
  * Returns: selectedText, position, and clear function
- * FIXED: Preserves selection range and continuously restores it while toolbar is visible
+ * FIXED: Preserves selection range and restores it if browser clears it
  */
 export function useTextSelection<T extends HTMLElement = HTMLElement>(containerRef: React.RefObject<T | null>) {
   const [selectedText, setSelectedText] = useState('');
   const [position, setPosition] = useState<SelectionPosition | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const isRestoringRef = useRef(false);
-  const restorationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Continuous restoration while toolbar is visible
-  useEffect(() => {
-    if (selectedText && savedRangeRef.current) {
-      // Start continuous restoration interval
-      restorationIntervalRef.current = setInterval(() => {
-        if (!isRestoringRef.current && savedRangeRef.current) {
-          const selection = window.getSelection();
-          const currentText = selection?.toString().trim() || '';
-
-          // If selection is lost, restore it
-          if (!currentText || currentText !== selectedText) {
-            isRestoringRef.current = true;
-            try {
-              selection?.removeAllRanges();
-              selection?.addRange(savedRangeRef.current);
-            } catch (e) {
-              console.warn('Failed to restore selection:', e);
-            } finally {
-              isRestoringRef.current = false;
-            }
-          }
-        }
-      }, 50); // Check and restore every 50ms
-
-      return () => {
-        if (restorationIntervalRef.current) {
-          clearInterval(restorationIntervalRef.current);
-          restorationIntervalRef.current = null;
-        }
-      };
-    }
-  }, [selectedText]);
 
   useEffect(() => {
     // Only check selection when mouse is released (not during drag)
@@ -104,34 +70,44 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
       setSelectedText('');
       setPosition(null);
       savedRangeRef.current = null;
+    };
 
-      // Clear the interval if it exists
-      if (restorationIntervalRef.current) {
-        clearInterval(restorationIntervalRef.current);
-        restorationIntervalRef.current = null;
+    // Restore selection if it gets cleared while toolbar is visible
+    const handleSelectionChange = () => {
+      if (isRestoringRef.current) return;
+
+      const selection = window.getSelection();
+      const hasSelection = selection && selection.toString().trim().length > 0;
+
+      // If toolbar is visible but browser selection is gone, restore it
+      if (!hasSelection && savedRangeRef.current && selectedText) {
+        isRestoringRef.current = true;
+        try {
+          selection?.removeAllRanges();
+          selection?.addRange(savedRangeRef.current);
+        } catch (e) {
+          console.warn('Failed to restore selection:', e);
+        } finally {
+          isRestoringRef.current = false;
+        }
       }
     };
 
     document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('selectionchange', handleSelectionChange);
 
     return () => {
       document.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('selectionchange', handleSelectionChange);
     };
-  }, [containerRef]);
+  }, [containerRef, selectedText]);
 
   const clearSelection = () => {
     setSelectedText('');
     setPosition(null);
     savedRangeRef.current = null;
-
-    // Clear the interval if it exists
-    if (restorationIntervalRef.current) {
-      clearInterval(restorationIntervalRef.current);
-      restorationIntervalRef.current = null;
-    }
-
     window.getSelection()?.removeAllRanges();
   };
 

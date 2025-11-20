@@ -56,6 +56,16 @@ export function SelectionToolbar({
           e.preventDefault();
           e.stopPropagation();
         }}
+        onMouseMove={(e) => {
+          // Prevent mouse movement from triggering selection changes
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onMouseEnter={(e) => {
+          // Prevent mouse enter from triggering selection changes
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         style={{
           position: 'fixed',
           left: position.x,
@@ -64,7 +74,6 @@ export function SelectionToolbar({
           userSelect: 'none',
           WebkitUserSelect: 'none',
           MozUserSelect: 'none',
-          pointerEvents: 'auto',
         }}
         className="flex items-center gap-1 bg-white/95 backdrop-blur-2xl border-2 border-white/90 rounded-2xl shadow-super-glass px-2 py-2"
       >
