@@ -67,7 +67,9 @@ export function SelectionToolbar({
           icon="📌"
           label="Pin"
           onClick={() => {
-            console.log('📌 Toolbar Pin clicked:', selectedText.substring(0, 50));
+            console.log('📌 Toolbar Pin clicked. Selected text length:', selectedText.length);
+            console.log('📌 Selected text:', selectedText.substring(0, 100));
+            console.log('📌 Browser selection:', window.getSelection()?.toString().substring(0, 100));
             onPin(selectedText);
           }}
           tooltip="Save to pinboard"
