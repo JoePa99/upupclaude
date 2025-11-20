@@ -117,7 +117,7 @@ export function MessageStream({ messages, onArtifactOpen, currentUserId }: Messa
   };
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto px-8 py-8 space-y-6">
+    <div ref={containerRef} className="px-8 py-8 space-y-6">
       <AnimatePresence initial={false}>
         {messages.map((message, index) => (
           <MessageCard
