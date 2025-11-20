@@ -51,8 +51,16 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
       }, 50);
     };
 
-    // Clear selection when clicking (starting new selection)
-    const handleMouseDown = () => {
+    // Only clear toolbar state on mousedown, but don't touch the actual browser selection
+    // This allows the toolbar to hide when starting a new selection
+    const handleMouseDown = (e: MouseEvent) => {
+      // Don't clear if clicking on the toolbar itself
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-selection-toolbar]')) {
+        return;
+      }
+
+      // Hide toolbar when starting new selection
       setSelectedText('');
       setPosition(null);
     };

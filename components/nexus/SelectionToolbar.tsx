@@ -44,6 +44,7 @@ export function SelectionToolbar({
   return (
     <AnimatePresence>
       <motion.div
+        data-selection-toolbar="true"
         initial={{ opacity: 0, scale: 0.9, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 10 }}
