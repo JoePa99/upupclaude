@@ -10,6 +10,7 @@ interface SelectionToolbarProps {
   onCopy: (text: string) => void;
   onEdit: (text: string) => void;
   position: { x: number; y: number } | null;
+  onRestoreSelection: () => void;
 }
 
 /**
@@ -23,6 +24,7 @@ export function SelectionToolbar({
   onCopy,
   onEdit,
   position,
+  onRestoreSelection,
 }: SelectionToolbarProps) {
   const [copied, setCopied] = useState(false);
 
@@ -53,16 +55,19 @@ export function SelectionToolbar({
           // Prevent toolbar clicks from clearing the text selection
           e.preventDefault();
           e.stopPropagation();
+          onRestoreSelection();
         }}
         onMouseMove={(e) => {
-          // Prevent mouse movement from triggering selection changes
+          // Prevent mouse movement from triggering selection changes and restore selection
           e.preventDefault();
           e.stopPropagation();
+          onRestoreSelection();
         }}
         onMouseEnter={(e) => {
-          // Prevent mouse enter from triggering selection changes
+          // Prevent mouse enter from triggering selection changes and restore selection
           e.preventDefault();
           e.stopPropagation();
+          onRestoreSelection();
         }}
         style={{
           position: 'fixed',

@@ -111,5 +111,20 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
     window.getSelection()?.removeAllRanges();
   };
 
-  return { selectedText, position, clearSelection };
+  const restoreSelection = () => {
+    if (savedRangeRef.current && !isRestoringRef.current) {
+      isRestoringRef.current = true;
+      try {
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(savedRangeRef.current);
+      } catch (e) {
+        console.warn('Failed to restore selection:', e);
+      } finally {
+        isRestoringRef.current = false;
+      }
+    }
+  };
+
+  return { selectedText, position, clearSelection, restoreSelection };
 }
