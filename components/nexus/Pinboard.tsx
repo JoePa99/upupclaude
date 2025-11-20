@@ -191,16 +191,27 @@ interface PinCardProps {
 function PinCard({ pin, onDelete, onClick }: PinCardProps) {
   const [showDelete, setShowDelete] = useState(false);
 
+  // Handle click only if no text is selected
+  const handleCardClick = (e: React.MouseEvent) => {
+    const selection = window.getSelection();
+    const hasSelection = selection && selection.toString().length > 0;
+
+    // Only trigger onClick if there's no text selection
+    if (!hasSelection) {
+      onClick();
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      whileHover={{ scale: 1.02, y: -2 }}
       onMouseEnter={() => setShowDelete(true)}
       onMouseLeave={() => setShowDelete(false)}
-      onClick={onClick}
-      className="bg-white/80 backdrop-blur-xl border border-white/90 rounded-2xl p-4 shadow-luminous cursor-pointer transition-all relative overflow-hidden"
+      onClick={handleCardClick}
+      className="bg-white/80 backdrop-blur-xl border border-white/90 rounded-2xl p-4 shadow-luminous transition-all relative overflow-hidden hover:shadow-xl"
+      style={{ cursor: 'default' }}
     >
       {/* Delete Button */}
       <AnimatePresence>
@@ -224,7 +235,10 @@ function PinCard({ pin, onDelete, onClick }: PinCardProps) {
 
       {/* Content */}
       <div className="space-y-2">
-        <p className="text-sm text-luminous-text-primary font-medium line-clamp-3 leading-relaxed">
+        <p
+          className="text-sm text-luminous-text-primary font-medium line-clamp-3 leading-relaxed"
+          style={{ userSelect: 'text', cursor: 'text' }}
+        >
           {pin.content}
         </p>
 
