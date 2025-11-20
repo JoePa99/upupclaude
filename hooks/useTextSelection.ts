@@ -82,7 +82,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
       if (!savedRangeRef.current) {
         setSelectedText('');
         setPosition(null);
-      }
+      }, 50);
     };
 
     const handleMouseDown = (e: MouseEvent) => {

@@ -41,7 +41,7 @@
   }
 
   /* Except for buttons and interactive elements */
-  button, [role="button"], input, select, textarea {
+  button:not([data-selection-toolbar] *), [role="button"]:not([data-selection-toolbar] *), input, select, textarea {
     user-select: none !important;
     -webkit-user-select: none !important;
     -moz-user-select: none !important;
