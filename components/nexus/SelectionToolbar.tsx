@@ -48,6 +48,11 @@ export function SelectionToolbar({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 10 }}
         transition={{ duration: 0.15, ease: 'easeOut' }}
+        onMouseDown={(e) => {
+          // Prevent toolbar clicks from clearing the text selection
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         style={{
           position: 'fixed',
           left: position.x,
