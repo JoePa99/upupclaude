@@ -68,8 +68,9 @@ export function SelectionToolbar({
         }}
         style={{
           position: 'fixed',
-          left: position.x,
-          top: position.y - 60, // Position above selection
+          left: position.x + 10, // 10px to the right of selection end
+          top: position.y, // Vertically aligned with selection center
+          transform: 'translateY(-50%)', // Center vertically
           zIndex: 9999,
           userSelect: 'none',
           WebkitUserSelect: 'none',
