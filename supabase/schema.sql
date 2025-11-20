@@ -384,3 +384,46 @@ create trigger update_channels_updated_at
   before update on channels
   for each row
   execute function update_updated_at();
+
+-- Pins table for saving snippets from messages
+create table if not exists pins (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  message_id uuid references messages(id) on delete set null,
+  content text not null,
+  content_type text not null check (content_type in ('text', 'code', 'table', 'list')),
+  collection text default 'Quick Pins',
+  tags text[] default '{}',
+  metadata jsonb default '{}',
+  created_at timestamptz default now() not null
+);
+
+-- Create indexes for better query performance
+create index if not exists pins_user_id_idx on pins(user_id);
+create index if not exists pins_message_id_idx on pins(message_id);
+create index if not exists pins_created_at_idx on pins(created_at desc);
+create index if not exists pins_collection_idx on pins(collection);
+
+-- Enable Row Level Security
+alter table pins enable row level security;
+
+-- Create RLS policies for pins
+create policy "Users can view their own pins"
+  on pins for select
+  using (user_id = auth.uid());
+
+create policy "Users can create their own pins"
+  on pins for insert
+  with check (user_id = auth.uid());
+
+create policy "Users can update their own pins"
+  on pins for update
+  using (user_id = auth.uid());
+
+create policy "Users can delete their own pins"
+  on pins for delete
+  using (user_id = auth.uid());
+
+-- Grant permissions
+grant all on pins to authenticated;
+grant all on pins to service_role;
