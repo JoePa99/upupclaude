@@ -9,16 +9,46 @@ interface SelectionPosition {
 
 /**
  * Hook to detect text selection and provide selection position
- * Uses CSS Custom Highlight API to maintain visual highlight independent of browser selection
+ * Returns: selectedText, position, and clear function
+ * FIXED: Positions toolbar at selection END so mouse doesn't leave selection area
  */
 export function useTextSelection<T extends HTMLElement = HTMLElement>(containerRef: React.RefObject<T | null>) {
   const [selectedText, setSelectedText] = useState('');
   const [position, setPosition] = useState<SelectionPosition | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
 
+  // Continuously restore selection while toolbar is visible
   useEffect(() => {
+    if (selectedText && savedRangeRef.current) {
+      const restoreLoop = () => {
+        if (savedRangeRef.current) {
+          const selection = window.getSelection();
+          if (selection && selection.rangeCount === 0) {
+            // Selection was cleared, restore it
+            try {
+              selection.addRange(savedRangeRef.current);
+            } catch (e) {
+              // Range might be invalid, ignore
+            }
+          }
+        }
+        animationFrameRef.current = requestAnimationFrame(restoreLoop);
+      };
+
+      animationFrameRef.current = requestAnimationFrame(restoreLoop);
+
+      return () => {
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+      };
+    }
+  }, [selectedText]);
+
+  useEffect(() => {
+    // Only check selection when mouse is released (not during drag)
     const handleMouseUp = () => {
-      // Capture selection IMMEDIATELY
+      // Capture selection IMMEDIATELY, don't wait
       const selection = window.getSelection();
       const text = selection?.toString().trim() || '';
 
@@ -37,18 +67,8 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
               y: rect.top + window.scrollY,
             };
 
-            // Save the range
+            // Save the range IMMEDIATELY before anything can clear it
             savedRangeRef.current = range.cloneRange();
-
-            // Create custom highlight using CSS Highlight API (if supported)
-            if ('highlights' in CSS) {
-              try {
-                const highlight = new Highlight(savedRangeRef.current);
-                (CSS as any).highlights.set('selection-highlight', highlight);
-              } catch (e) {
-                console.warn('Highlight API failed:', e);
-              }
-            }
 
             setSelectedText(text);
             setPosition(toolbarPosition);
@@ -57,7 +77,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
         }
       }
 
-      // Clear if no valid selection
+      // Clear if no valid selection (but only if we're not showing toolbar)
       if (!savedRangeRef.current) {
         setSelectedText('');
         setPosition(null);
@@ -74,14 +94,9 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
       setSelectedText('');
       setPosition(null);
       savedRangeRef.current = null;
-
-      // Clear custom highlight
-      if ('highlights' in CSS) {
-        try {
-          (CSS as any).highlights.delete('selection-highlight');
-        } catch (e) {
-          // Ignore
-        }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
 
@@ -98,16 +113,10 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
     setSelectedText('');
     setPosition(null);
     savedRangeRef.current = null;
-
-    // Clear custom highlight
-    if ('highlights' in CSS) {
-      try {
-        (CSS as any).highlights.delete('selection-highlight');
-      } catch (e) {
-        // Ignore
-      }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
-
     window.getSelection()?.removeAllRanges();
   };
 
