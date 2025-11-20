@@ -51,66 +51,27 @@ function CopyButton({ code }: { code: string }) {
  */
 export function MessageStream({ messages, onArtifactOpen, currentUserId }: MessageStreamProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { selectedText, position, clearSelection } = useTextSelection(containerRef);
+  // DISABLED: This hook was interfering with text selection
+  // const { selectedText, position, clearSelection } = useTextSelection(containerRef);
   const { addPin, openPinboard } = usePinStore();
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
 
   const handlePin = async (text: string) => {
     console.log('📌 Pin clicked!', { text, currentMessageId, currentUserId });
-
-    if (!currentUserId) {
-      console.error('❌ No user ID available');
-      return;
-    }
-
-    if (!currentMessageId) {
-      console.error('❌ No message ID - user may not have hovered over message');
-      const fallbackMessageId = messages[messages.length - 1]?.id;
-      if (!fallbackMessageId) {
-        console.error('❌ No messages available');
-        return;
-      }
-      setCurrentMessageId(fallbackMessageId);
-      console.log('⚠️ Using fallback message ID:', fallbackMessageId);
-    }
-
-    try {
-      await addPin({
-        user_id: currentUserId,
-        message_id: currentMessageId || messages[messages.length - 1]?.id,
-        content: text,
-        content_type: 'text',
-        collection: 'Quick Pins',
-      });
-      console.log('✅ Pin created successfully!');
-      clearSelection();
-      openPinboard();
-    } catch (error) {
-      console.error('❌ Error creating pin:', error);
-    }
+    // Pinning temporarily disabled while fixing text selection
+    alert('Pinning temporarily disabled while we fix text selection issues');
   };
 
   const handleAskFollowUp = (text: string) => {
     console.log('💬 Ask follow-up clicked:', text);
-    alert(`Ask follow-up feature coming soon!\n\nSelected text: "${text}"`);
-    clearSelection();
   };
 
   const handleCopy = async (text: string) => {
     console.log('📋 Copy clicked:', text);
-    try {
-      await navigator.clipboard.writeText(text);
-      console.log('✅ Copied to clipboard!');
-    } catch (error) {
-      console.error('❌ Failed to copy:', error);
-      alert('Failed to copy to clipboard. Please try again.');
-    }
   };
 
   const handleEdit = (text: string) => {
     console.log('✏️ Edit clicked:', text);
-    alert(`Edit in artifact feature coming soon!\n\nSelected text: "${text}"`);
-    clearSelection();
   };
 
   return (
@@ -127,15 +88,15 @@ export function MessageStream({ messages, onArtifactOpen, currentUserId }: Messa
         ))}
       </AnimatePresence>
 
-      {/* Selection Toolbar */}
-      <SelectionToolbar
+      {/* Selection Toolbar - TEMPORARILY DISABLED FOR DEBUGGING */}
+      {/* <SelectionToolbar
         selectedText={selectedText}
         position={position}
         onPin={handlePin}
         onAskFollowUp={handleAskFollowUp}
         onCopy={handleCopy}
         onEdit={handleEdit}
-      />
+      /> */}
     </div>
   );
 }
