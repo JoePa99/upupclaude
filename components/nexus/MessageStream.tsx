@@ -130,15 +130,15 @@ export function MessageStream({ messages, onArtifactOpen, currentUserId }: Messa
         ))}
       </AnimatePresence>
 
-      {/* Selection Toolbar */}
-      <SelectionToolbar
+      {/* Selection Toolbar - TEMPORARILY DISABLED FOR DEBUGGING */}
+      {/* <SelectionToolbar
         selectedText={selectedText}
         position={position}
         onPin={handlePin}
         onAskFollowUp={handleAskFollowUp}
         onCopy={handleCopy}
         onEdit={handleEdit}
-      />
+      /> */}
     </div>
   );
 }
