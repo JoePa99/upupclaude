@@ -119,7 +119,16 @@ interface ToolbarButtonProps {
 function ToolbarButton({ icon, label, onClick, tooltip, highlighted }: ToolbarButtonProps) {
   return (
     <motion.button
-      onClick={onClick}
+      onMouseDown={(e) => {
+        // Prevent this button from clearing selection
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+      }}
       whileHover={{ scale: 1.05, y: -2 }}
       whileTap={{ scale: 0.95 }}
       className={`
