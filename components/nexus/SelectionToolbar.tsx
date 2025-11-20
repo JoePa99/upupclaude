@@ -10,6 +10,7 @@ interface SelectionToolbarProps {
   onCopy: (text: string) => void;
   onEdit: (text: string) => void;
   position: { x: number; y: number } | null;
+  onRestoreSelection: () => void;
 }
 
 /**
@@ -23,6 +24,7 @@ export function SelectionToolbar({
   onCopy,
   onEdit,
   position,
+  onRestoreSelection,
 }: SelectionToolbarProps) {
   const [copied, setCopied] = useState(false);
 

@@ -51,7 +51,7 @@ function CopyButton({ code }: { code: string }) {
  */
 export function MessageStream({ messages, onArtifactOpen, currentUserId }: MessageStreamProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { selectedText, position, clearSelection } = useTextSelection(containerRef);
+  const { selectedText, position, clearSelection, restoreSelection } = useTextSelection(containerRef);
   const { addPin, openPinboard } = usePinStore();
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
 
@@ -135,6 +135,7 @@ export function MessageStream({ messages, onArtifactOpen, currentUserId }: Messa
         onAskFollowUp={handleAskFollowUp}
         onCopy={handleCopy}
         onEdit={handleEdit}
+        onRestoreSelection={restoreSelection}
       />
     </div>
   );
