@@ -24,9 +24,13 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
       const restoreLoop = () => {
         if (savedRangeRef.current) {
           const selection = window.getSelection();
-          if (selection && selection.rangeCount === 0) {
-            // Selection was cleared, restore it
+          const currentText = selection?.toString() ?? '';
+
+          // Restore when the browser collapses the range (common when clicking the toolbar)
+          // or if the selection was completely removed
+          if (selection && (selection.rangeCount === 0 || currentText === '')) {
             try {
+              selection.removeAllRanges();
               selection.addRange(savedRangeRef.current);
             } catch (e) {
               // Range might be invalid, ignore
