@@ -10,12 +10,48 @@ interface SelectionPosition {
 /**
  * Hook to detect text selection and provide selection position
  * Returns: selectedText, position, and clear function
- * FIXED: Positions toolbar at selection END so mouse doesn't leave selection area
+ * FIXED: Uses requestAnimationFrame for frame-perfect selection restoration
  */
 export function useTextSelection<T extends HTMLElement = HTMLElement>(containerRef: React.RefObject<T | null>) {
   const [selectedText, setSelectedText] = useState('');
   const [position, setPosition] = useState<SelectionPosition | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
+  // Continuous restoration using requestAnimationFrame for smoothness
+  useEffect(() => {
+    if (selectedText && savedRangeRef.current) {
+      const restoreLoop = () => {
+        if (savedRangeRef.current) {
+          const selection = window.getSelection();
+          const currentText = selection?.toString().trim() || '';
+
+          // If selection is lost or different, restore it
+          if (!currentText || currentText !== selectedText) {
+            try {
+              selection?.removeAllRanges();
+              selection?.addRange(savedRangeRef.current);
+            } catch (e) {
+              // Silently fail - range might be invalid
+            }
+          }
+        }
+
+        // Continue the loop
+        animationFrameRef.current = requestAnimationFrame(restoreLoop);
+      };
+
+      // Start the restoration loop
+      animationFrameRef.current = requestAnimationFrame(restoreLoop);
+
+      return () => {
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
+      };
+    }
+  }, [selectedText]);
 
   useEffect(() => {
     // Only check selection when mouse is released (not during drag)
@@ -71,6 +107,12 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
       setSelectedText('');
       setPosition(null);
       savedRangeRef.current = null;
+
+      // Clear the animation frame if it exists
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
     };
 
     document.addEventListener('mouseup', handleMouseUp);
@@ -86,6 +128,13 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
     setSelectedText('');
     setPosition(null);
     savedRangeRef.current = null;
+
+    // Clear the animation frame if it exists
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
     window.getSelection()?.removeAllRanges();
   };
 
