@@ -25,6 +25,7 @@ export const usePinStore = create<PinStore>((set, get) => ({
   isLoading: false,
 
   addPin: async (pinData) => {
+    console.log('📌 Store: Adding pin', { pinData });
     set({ isLoading: true });
     try {
       const response = await fetch('/api/pins', {
@@ -33,18 +34,25 @@ export const usePinStore = create<PinStore>((set, get) => ({
         body: JSON.stringify(pinData),
       });
 
+      console.log('📌 Store: API response status', response.status);
+
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('📌 Store: API error', errorData);
         throw new Error('Failed to create pin');
       }
 
       const newPin: Pin = await response.json();
+      console.log('📌 Store: Pin created successfully', newPin);
       set((state) => ({
         pins: [newPin, ...state.pins],
         isLoading: false,
       }));
+      console.log('📌 Store: Pin added to state, total pins:', get().pins.length);
     } catch (error) {
-      console.error('Error adding pin:', error);
+      console.error('❌ Store: Error adding pin:', error);
       set({ isLoading: false });
+      throw error; // Re-throw so caller knows it failed
     }
   },
 
@@ -87,14 +95,18 @@ export const usePinStore = create<PinStore>((set, get) => ({
   },
 
   togglePinboard: () => {
+    const currentState = get().isPinboardOpen;
+    console.log('📌 Store: Toggle pinboard', { from: currentState, to: !currentState });
     set((state) => ({ isPinboardOpen: !state.isPinboardOpen }));
   },
 
   openPinboard: () => {
+    console.log('📌 Store: Open pinboard');
     set({ isPinboardOpen: true });
   },
 
   closePinboard: () => {
+    console.log('📌 Store: Close pinboard');
     set({ isPinboardOpen: false });
   },
 }));

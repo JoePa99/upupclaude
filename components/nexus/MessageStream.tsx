@@ -16,6 +16,7 @@ import { TableOfContents } from './TableOfContents';
 interface MessageStreamProps {
   messages: MessageType[];
   onArtifactOpen?: (message: MessageType) => void;
+  currentUserId?: string;
 }
 
 /**
@@ -48,40 +49,70 @@ function CopyButton({ code }: { code: string }) {
  * AI Agent: Super-Glass cards with collapsible reasoning + action buttons
  * Now with text selection and pinning!
  */
-export function MessageStream({ messages, onArtifactOpen }: MessageStreamProps) {
+export function MessageStream({ messages, onArtifactOpen, currentUserId }: MessageStreamProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { selectedText, position, clearSelection } = useTextSelection(containerRef);
   const { addPin, openPinboard } = usePinStore();
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
 
   const handlePin = async (text: string) => {
-    if (!currentMessageId) return;
+    console.log('📌 Pin clicked!', { text, currentMessageId, currentUserId });
 
-    await addPin({
-      user_id: 'current-user', // TODO: Get from auth context
-      message_id: currentMessageId,
-      content: text,
-      content_type: 'text',
-      collection: 'Quick Pins',
-    });
+    if (!currentUserId) {
+      console.error('❌ No user ID available');
+      return;
+    }
 
-    clearSelection();
-    openPinboard();
+    if (!currentMessageId) {
+      console.error('❌ No message ID - user may not have hovered over message');
+      // Fallback: use the first message if available
+      const fallbackMessageId = messages[messages.length - 1]?.id;
+      if (!fallbackMessageId) {
+        console.error('❌ No messages available');
+        return;
+      }
+      setCurrentMessageId(fallbackMessageId);
+      console.log('⚠️ Using fallback message ID:', fallbackMessageId);
+    }
+
+    try {
+      await addPin({
+        user_id: currentUserId,
+        message_id: currentMessageId || messages[messages.length - 1]?.id,
+        content: text,
+        content_type: 'text',
+        collection: 'Quick Pins',
+      });
+      console.log('✅ Pin created successfully!');
+      clearSelection();
+      openPinboard();
+    } catch (error) {
+      console.error('❌ Error creating pin:', error);
+    }
   };
 
   const handleAskFollowUp = (text: string) => {
+    console.log('💬 Ask follow-up clicked:', text);
     // TODO: Implement ask follow-up - add to input with context
-    console.log('Ask follow-up about:', text);
+    alert(`Ask follow-up feature coming soon!\n\nSelected text: "${text}"`);
     clearSelection();
   };
 
   const handleCopy = async (text: string) => {
-    await navigator.clipboard.writeText(text);
+    console.log('📋 Copy clicked:', text);
+    try {
+      await navigator.clipboard.writeText(text);
+      console.log('✅ Copied to clipboard!');
+    } catch (error) {
+      console.error('❌ Failed to copy:', error);
+      alert('Failed to copy to clipboard. Please try again.');
+    }
   };
 
   const handleEdit = (text: string) => {
+    console.log('✏️ Edit clicked:', text);
     // TODO: Open artifact editor with selected text
-    console.log('Edit in artifact:', text);
+    alert(`Edit in artifact feature coming soon!\n\nSelected text: "${text}"`);
     clearSelection();
   };
 

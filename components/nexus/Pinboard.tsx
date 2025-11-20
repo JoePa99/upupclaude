@@ -17,6 +17,8 @@ interface PinboardProps {
  * Users can browse, search, and organize their pinned content
  */
 export function Pinboard({ isOpen, onClose, pins, onDeletePin, onPinClick }: PinboardProps) {
+  console.log('📌 Pinboard render:', { isOpen, pinsCount: pins.length });
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
 
