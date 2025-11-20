@@ -169,7 +169,7 @@ function MessageCard({ message, index, onArtifactOpen, onMessageInteract }: Mess
         className="flex justify-end"
       >
         <div className="max-w-2xl">
-          <div className="flex items-start gap-3 justify-end mb-2">
+          <div className="flex items-start gap-3 justify-end mb-2" style={{ userSelect: 'none' }}>
             <div className="text-right">
               <span className="text-sm font-semibold text-luminous-text-primary">
                 {message.author.name}
@@ -181,7 +181,7 @@ function MessageCard({ message, index, onArtifactOpen, onMessageInteract }: Mess
           </div>
           <div
             className="bg-white/50 backdrop-blur-xl border border-white/70 rounded-3xl px-5 py-4 shadow-md"
-            style={{ userSelect: 'text' }}
+            style={{ userSelect: 'text', cursor: 'text' }}
           >
             <p className="text-luminous-text-primary font-medium">{message.content}</p>
           </div>
@@ -218,7 +218,7 @@ function MessageCard({ message, index, onArtifactOpen, onMessageInteract }: Mess
     >
       <div className="max-w-3xl w-full">
         {/* Agent Header */}
-        <div className="flex items-start gap-3 mb-3">
+        <div className="flex items-start gap-3 mb-3" style={{ userSelect: 'none' }}>
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center text-white font-extrabold text-base flex-shrink-0 shadow-luminous"
             style={{ backgroundColor: agentColor }}
@@ -246,7 +246,7 @@ function MessageCard({ message, index, onArtifactOpen, onMessageInteract }: Mess
         {/* Super-Glass Card */}
         <div
           className="bg-white/80 backdrop-blur-2xl border border-white/90 rounded-luminous shadow-super-glass overflow-hidden"
-          style={{ userSelect: 'text' }}
+          style={{ userSelect: 'text', cursor: 'text' }}
         >
           {/* Reasoning Section (Collapsible) */}
           {reasoning && (
@@ -254,6 +254,7 @@ function MessageCard({ message, index, onArtifactOpen, onMessageInteract }: Mess
               <button
                 onClick={() => setShowReasoning(!showReasoning)}
                 className="w-full px-6 py-3 flex items-center justify-between hover:bg-white/40 transition-colors"
+                style={{ userSelect: 'none', cursor: 'pointer' }}
               >
                 <span className="text-sm font-bold text-luminous-text-secondary">
                   💭 Reasoning Process
