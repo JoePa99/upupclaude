@@ -47,12 +47,6 @@
     -moz-user-select: none !important;
   }
 
-  /* Custom highlight for text selection using CSS Highlight API */
-  ::highlight(selection-highlight) {
-    background-color: #56E3FF40; /* Cyan with 25% opacity */
-    color: inherit;
-  }
-
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-sans);
     font-weight: 800;
