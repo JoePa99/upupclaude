@@ -10,11 +10,13 @@ interface SelectionPosition {
 /**
  * Hook to detect text selection and provide selection position
  * Returns: selectedText, position, and clear function
- * FIXED: Only checks selection on mouseup, doesn't interfere with native selection
+ * FIXED: Preserves selection range and restores it if browser clears it
  */
 export function useTextSelection<T extends HTMLElement = HTMLElement>(containerRef: React.RefObject<T | null>) {
   const [selectedText, setSelectedText] = useState('');
   const [position, setPosition] = useState<SelectionPosition | null>(null);
+  const savedRangeRef = useRef<Range | null>(null);
+  const isRestoringRef = useRef(false);
 
   useEffect(() => {
     // Only check selection when mouse is released (not during drag)
@@ -38,6 +40,10 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
                 x: rect.left + rect.width / 2,
                 y: rect.top + window.scrollY, // Account for scroll
               };
+
+              // Save the range so we can restore it if needed
+              savedRangeRef.current = range.cloneRange();
+
               setSelectedText(text);
               setPosition(toolbarPosition);
               return;
@@ -45,30 +51,63 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
           }
         }
 
-        // Clear if no valid selection
-        setSelectedText('');
-        setPosition(null);
+        // Clear if no valid selection (but only if we're not showing toolbar)
+        if (!savedRangeRef.current) {
+          setSelectedText('');
+          setPosition(null);
+        }
       }, 50);
     };
 
     // Clear selection when clicking (starting new selection)
-    const handleMouseDown = () => {
+    const handleMouseDown = (e: MouseEvent) => {
+      // Don't clear if clicking within the toolbar area
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-selection-toolbar]')) {
+        return;
+      }
+
       setSelectedText('');
       setPosition(null);
+      savedRangeRef.current = null;
+    };
+
+    // Restore selection if it gets cleared while toolbar is visible
+    const handleSelectionChange = () => {
+      if (isRestoringRef.current) return;
+
+      const selection = window.getSelection();
+      const hasSelection = selection && selection.toString().trim().length > 0;
+
+      // If toolbar is visible but browser selection is gone, restore it
+      if (!hasSelection && savedRangeRef.current && selectedText) {
+        isRestoringRef.current = true;
+        try {
+          selection?.removeAllRanges();
+          selection?.addRange(savedRangeRef.current);
+        } catch (e) {
+          console.warn('Failed to restore selection:', e);
+        } finally {
+          isRestoringRef.current = false;
+        }
+      }
     };
 
     document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('selectionchange', handleSelectionChange);
 
     return () => {
       document.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('selectionchange', handleSelectionChange);
     };
-  }, [containerRef]);
+  }, [containerRef, selectedText]);
 
   const clearSelection = () => {
     setSelectedText('');
     setPosition(null);
+    savedRangeRef.current = null;
     window.getSelection()?.removeAllRanges();
   };
 
