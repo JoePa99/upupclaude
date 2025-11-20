@@ -9,47 +9,16 @@ interface SelectionPosition {
 
 /**
  * Hook to detect text selection and provide selection position
- * Returns: selectedText, position, and clear function
- * FIXED: Positions toolbar at selection END so mouse doesn't leave selection area
+ * Uses CSS Custom Highlight API to maintain visual highlight independent of browser selection
  */
 export function useTextSelection<T extends HTMLElement = HTMLElement>(containerRef: React.RefObject<T | null>) {
   const [selectedText, setSelectedText] = useState('');
   const [position, setPosition] = useState<SelectionPosition | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-
-  // Continuously restore selection while toolbar is visible
-  useEffect(() => {
-    if (selectedText && savedRangeRef.current) {
-      const restoreLoop = () => {
-        if (savedRangeRef.current) {
-          const selection = window.getSelection();
-          if (selection && selection.rangeCount === 0) {
-            // Selection was cleared, restore it
-            try {
-              selection.addRange(savedRangeRef.current);
-            } catch (e) {
-              // Range might be invalid, ignore
-            }
-          }
-        }
-        animationFrameRef.current = requestAnimationFrame(restoreLoop);
-      };
-
-      animationFrameRef.current = requestAnimationFrame(restoreLoop);
-
-      return () => {
-        if (animationFrameRef.current) {
-          cancelAnimationFrame(animationFrameRef.current);
-        }
-      };
-    }
-  }, [selectedText]);
 
   useEffect(() => {
-    // Only check selection when mouse is released (not during drag)
     const handleMouseUp = () => {
-      // Capture selection IMMEDIATELY, don't wait
+      // Capture selection IMMEDIATELY
       const selection = window.getSelection();
       const text = selection?.toString().trim() || '';
 
@@ -68,8 +37,18 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
               y: rect.top + window.scrollY,
             };
 
-            // Save the range IMMEDIATELY before anything can clear it
+            // Save the range
             savedRangeRef.current = range.cloneRange();
+
+            // Create custom highlight using CSS Highlight API (if supported)
+            if ('highlights' in CSS) {
+              try {
+                const highlight = new Highlight(savedRangeRef.current);
+                (CSS as any).highlights.set('selection-highlight', highlight);
+              } catch (e) {
+                console.warn('Highlight API failed:', e);
+              }
+            }
 
             setSelectedText(text);
             setPosition(toolbarPosition);
@@ -78,14 +57,13 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
         }
       }
 
-      // Clear if no valid selection (but only if we're not showing toolbar)
+      // Clear if no valid selection
       if (!savedRangeRef.current) {
         setSelectedText('');
         setPosition(null);
       }
     };
 
-    // Clear selection when clicking (starting new selection)
     const handleMouseDown = (e: MouseEvent) => {
       // Don't clear if clicking within the toolbar area
       const target = e.target as HTMLElement;
@@ -96,9 +74,14 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
       setSelectedText('');
       setPosition(null);
       savedRangeRef.current = null;
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
+
+      // Clear custom highlight
+      if ('highlights' in CSS) {
+        try {
+          (CSS as any).highlights.delete('selection-highlight');
+        } catch (e) {
+          // Ignore
+        }
       }
     };
 
@@ -115,14 +98,21 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
     setSelectedText('');
     setPosition(null);
     savedRangeRef.current = null;
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
+
+    // Clear custom highlight
+    if ('highlights' in CSS) {
+      try {
+        (CSS as any).highlights.delete('selection-highlight');
+      } catch (e) {
+        // Ignore
+      }
     }
+
     window.getSelection()?.removeAllRanges();
   };
 
   const restoreSelection = () => {
+    // Not needed with CSS Highlight API, but keep for compatibility
     if (savedRangeRef.current) {
       try {
         const selection = window.getSelection();
@@ -136,3 +126,4 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
 
   return { selectedText, position, clearSelection, restoreSelection };
 }
+
