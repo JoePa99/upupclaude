@@ -16,6 +16,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
   const [selectedText, setSelectedText] = useState('');
   const [position, setPosition] = useState<SelectionPosition | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   // Continuously restore selection while toolbar is visible
   useEffect(() => {
