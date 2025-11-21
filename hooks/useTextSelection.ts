@@ -37,12 +37,19 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
             }
           }
         }
-        animationFrameRef.current = requestAnimationFrame(restoreLoop);
       };
 
-      animationFrameRef.current = requestAnimationFrame(restoreLoop);
+      const handleSelectionChange = () => {
+        // Delay restoration to after the browser updates the selection
+        animationFrameRef.current = requestAnimationFrame(restoreSelection);
+      };
+
+      document.addEventListener('selectionchange', handleSelectionChange);
+      // Immediately restore once so mouseup doesn't clear the highlight
+      handleSelectionChange();
 
       return () => {
+        document.removeEventListener('selectionchange', handleSelectionChange);
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
         }
@@ -74,6 +81,19 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
 
             // Save the range IMMEDIATELY before anything can clear it
             savedRangeRef.current = range.cloneRange();
+
+            // Force the browser to keep showing the selection even after mouseup
+            requestAnimationFrame(() => {
+              try {
+                const selection = window.getSelection();
+                selection?.removeAllRanges();
+                if (savedRangeRef.current) {
+                  selection?.addRange(savedRangeRef.current);
+                }
+              } catch (e) {
+                // ignore invalid ranges
+              }
+            });
 
             setSelectedText(text);
             setPosition(toolbarPosition);
