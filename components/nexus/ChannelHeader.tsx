@@ -10,6 +10,8 @@ interface ChannelHeaderProps {
   onDeleteChannel?: () => void;
   onTogglePinboard?: () => void;
   pinCount?: number;
+  onToggleArtifacts?: () => void;
+  artifactCount?: number;
 }
 
 /**
@@ -22,6 +24,8 @@ export function ChannelHeader({
   onDeleteChannel,
   onTogglePinboard,
   pinCount = 0,
+  onToggleArtifacts,
+  artifactCount = 0,
 }: ChannelHeaderProps) {
   return (
     <motion.div
@@ -59,6 +63,24 @@ export function ChannelHeader({
             {pinCount > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-luminous-accent-cyan text-white text-xs font-extrabold">
                 {pinCount}
+              </span>
+            )}
+          </motion.button>
+        )}
+
+        {/* Artifact Library Button */}
+        {onToggleArtifacts && (
+          <motion.button
+            onClick={onToggleArtifacts}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-luminous-accent-cyan/20 to-luminous-accent-purple/20 hover:from-luminous-accent-cyan/30 hover:to-luminous-accent-purple/30 border border-white/70 text-luminous-text-primary text-sm font-bold transition-all flex items-center gap-2"
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <span className="text-base">🧩</span>
+            <span>Artifacts</span>
+            {artifactCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-luminous-accent-cyan text-white text-xs font-extrabold">
+                {artifactCount}
               </span>
             )}
           </motion.button>
