@@ -53,6 +53,12 @@
     letter-spacing: -0.025em;
   }
 
+  /* Persistent selection highlight for pinning */
+  ::highlight(pin-selection-highlight) {
+    background: rgba(86, 227, 255, 0.3);
+    border-radius: 6px;
+    box-shadow: 0 0 0 1px rgba(86, 227, 255, 0.4);
+  }
 }
 
 /* Luminous Glass Scrollbar */
@@ -122,3 +128,11 @@ button, a, [role="button"] {
    that pseudo-element during CSS parsing and will fail the build. If you see a
    merge conflict that reintroduces a ::highlight rule, choose the version
    without it so builds continue to succeed. */
+/* Selection highlighting for pinning is applied at runtime via useTextSelection.
+   Do NOT add ::highlight(...) rules here—Turbopack rejects that pseudo-element
+   during CSS parsing and will fail the build. */
+/* If you hit a merge conflict that reintroduces a ::highlight rule, prefer the
+   version without it (keep the runtime-injected highlight instead) so builds
+   continue to succeed. */
+/* Selection highlighting for pinning is applied at runtime via useTextSelection
+   to avoid bundler parsing issues with the CSS Highlight pseudo-element. */
