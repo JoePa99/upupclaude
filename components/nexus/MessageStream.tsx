@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Message as MessageType } from '@/types';
+import { SelectionHighlightOverlay } from './SelectionHighlightOverlay';
 import { SelectionToolbar } from './SelectionToolbar';
 import { useTextSelection } from '@/hooks/useTextSelection';
 import { usePinStore } from '@/stores/pinStore';
@@ -51,7 +52,7 @@ function CopyButton({ code }: { code: string }) {
  */
 export function MessageStream({ messages, onArtifactOpen, currentUserId }: MessageStreamProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { selectedText, position, clearSelection, restoreSelection } = useTextSelection(containerRef);
+  const { selectedText, position, highlightRects, clearSelection, restoreSelection } = useTextSelection(containerRef);
   const { addPin, openPinboard } = usePinStore();
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
 
@@ -126,6 +127,8 @@ export function MessageStream({ messages, onArtifactOpen, currentUserId }: Messa
           />
         ))}
       </AnimatePresence>
+
+      <SelectionHighlightOverlay rects={highlightRects} />
 
       {/* Selection Toolbar */}
       <SelectionToolbar
