@@ -44,19 +44,14 @@ export function PageClient({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
-  // Pin store
-  const { pins, isPinboardOpen, closePinboard, removePin, fetchPins, togglePinboard } = usePinStore();
+  // Artifact library
+  const { artifacts, isPanelOpen: isArtifactPanelOpen, openPanel: openArtifactPanel, closePanel: closeArtifactPanel } = useArtifactStore();
 
   // Artifact library
   const { artifacts, isPanelOpen: isArtifactPanelOpen, openPanel: openArtifactPanel, closePanel: closeArtifactPanel } = useArtifactStore();
 
   // Get current user from workspace
   const currentUser = workspace.users.find(u => u.id === currentUserId) || workspace.users[0];
-
-  // Load pins on mount
-  useEffect(() => {
-    fetchPins(currentUserId);
-  }, [currentUserId, fetchPins]);
 
   // Scroll to bottom when messages change or channel changes
   const scrollToBottom = () => {
@@ -421,7 +416,6 @@ export function PageClient({
             <MessageStream
               messages={channelMessages}
               onArtifactOpen={handleArtifactOpen}
-              currentUserId={currentUserId}
             />
 
             {/* Typing Indicators */}

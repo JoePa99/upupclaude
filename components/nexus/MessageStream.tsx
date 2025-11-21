@@ -18,7 +18,6 @@ import { TableOfContents } from './TableOfContents';
 interface MessageStreamProps {
   messages: MessageType[];
   onArtifactOpen?: (message: MessageType) => void;
-  currentUserId?: string;
 }
 
 /**
@@ -51,7 +50,7 @@ function CopyButton({ code }: { code: string }) {
  * AI Agent: Super-Glass cards with collapsible reasoning + action buttons
  * Now with text selection plus pinning and artifact drafting!
  */
-export function MessageStream({ messages, onArtifactOpen, currentUserId }: MessageStreamProps) {
+export function MessageStream({ messages, onArtifactOpen }: MessageStreamProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { selectedText, position, highlightRects, clearSelection, restoreSelection } = useTextSelection(containerRef);
   const { addPin, openPinboard } = usePinStore();
@@ -75,36 +74,14 @@ export function MessageStream({ messages, onArtifactOpen, currentUserId }: Messa
   const handlePin = async (text: string) => {
     console.log('📌 Pin clicked!', { text, currentMessageId, currentUserId });
 
-    if (!currentUserId) {
-      console.error('❌ No user ID available');
-      return;
-    }
+    addArtifact({
+      content: text,
+      title,
+      sourceMessageId: fallbackMessageId,
+    });
 
-    if (!currentMessageId) {
-      console.error('❌ No message ID - user may not have hovered over message');
-      const fallbackMessageId = messages[messages.length - 1]?.id;
-      if (!fallbackMessageId) {
-        console.error('❌ No messages available');
-        return;
-      }
-      setCurrentMessageId(fallbackMessageId);
-      console.log('⚠️ Using fallback message ID:', fallbackMessageId);
-    }
-
-    try {
-      await addPin({
-        user_id: currentUserId,
-        message_id: currentMessageId || messages[messages.length - 1]?.id,
-        content: text,
-        content_type: 'text',
-        collection: 'Quick Pins',
-      });
-      console.log('✅ Pin created successfully!');
-      clearSelection();
-      openPinboard();
-    } catch (error) {
-      console.error('❌ Error creating pin:', error);
-    }
+    clearSelection();
+    openPanel();
   };
 
   const handleAskFollowUp = (text: string) => {
