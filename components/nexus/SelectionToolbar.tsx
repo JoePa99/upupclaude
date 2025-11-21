@@ -79,15 +79,26 @@ export function SelectionToolbar({
         }}
         className="flex items-center gap-1 bg-white/95 backdrop-blur-2xl border-2 border-white/90 rounded-2xl shadow-super-glass px-2 py-2"
       >
-        {/* Pin Button */}
+        {/* Artifact Button */}
         <ToolbarButton
-          icon="📌"
-          label="Pin"
+          icon="🧩"
+          label="Artifact"
           onClick={() => {
-            console.log('📌 Toolbar Pin clicked:', selectedText.substring(0, 50));
-            onPin(selectedText);
+            console.log('🧩 Toolbar Artifact clicked:', selectedText.substring(0, 50));
+            onCreateArtifact(selectedText);
           }}
-          tooltip="Save to pinboard"
+          tooltip="Save & edit as artifact"
+        />
+
+        {/* Artifact Button */}
+        <ToolbarButton
+          icon="🧩"
+          label="Artifact"
+          onClick={() => {
+            console.log('🧩 Toolbar Artifact clicked:', selectedText.substring(0, 50));
+            onCreateArtifact(selectedText);
+          }}
+          tooltip="Save & edit as artifact"
         />
 
         {/* Artifact Button */}
