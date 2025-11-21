@@ -10,14 +10,13 @@ import type { Message as MessageType } from '@/types';
 import { SelectionHighlightOverlay } from './SelectionHighlightOverlay';
 import { SelectionToolbar } from './SelectionToolbar';
 import { useTextSelection } from '@/hooks/useTextSelection';
-import { usePinStore } from '@/stores/pinStore';
+import { useArtifactStore } from '@/stores/artifactStore';
 import { ExpandableCodeBlock } from './ExpandableCodeBlock';
 import { TableOfContents } from './TableOfContents';
 
 interface MessageStreamProps {
   messages: MessageType[];
   onArtifactOpen?: (message: MessageType) => void;
-  currentUserId?: string;
 }
 
 /**
@@ -48,47 +47,26 @@ function CopyButton({ code }: { code: string }) {
  * NEXUS Message Stream - Center chat with glass cards
  * Human: Minimal text on glass
  * AI Agent: Super-Glass cards with collapsible reasoning + action buttons
- * Now with text selection and pinning!
+ * Now with text selection and artifact drafting!
  */
-export function MessageStream({ messages, onArtifactOpen, currentUserId }: MessageStreamProps) {
+export function MessageStream({ messages, onArtifactOpen }: MessageStreamProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { selectedText, position, highlightRects, clearSelection, restoreSelection } = useTextSelection(containerRef);
-  const { addPin, openPinboard } = usePinStore();
+  const { addArtifact, openPanel } = useArtifactStore();
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
 
-  const handlePin = async (text: string) => {
-    console.log('📌 Pin clicked!', { text, currentMessageId, currentUserId });
+  const handleCreateArtifact = (text: string) => {
+    const fallbackMessageId = currentMessageId || messages[messages.length - 1]?.id;
+    const title = text.split('\n').find((line) => line.trim().length > 0)?.slice(0, 80) || 'New Artifact';
 
-    if (!currentUserId) {
-      console.error('❌ No user ID available');
-      return;
-    }
+    addArtifact({
+      content: text,
+      title,
+      sourceMessageId: fallbackMessageId,
+    });
 
-    if (!currentMessageId) {
-      console.error('❌ No message ID - user may not have hovered over message');
-      const fallbackMessageId = messages[messages.length - 1]?.id;
-      if (!fallbackMessageId) {
-        console.error('❌ No messages available');
-        return;
-      }
-      setCurrentMessageId(fallbackMessageId);
-      console.log('⚠️ Using fallback message ID:', fallbackMessageId);
-    }
-
-    try {
-      await addPin({
-        user_id: currentUserId,
-        message_id: currentMessageId || messages[messages.length - 1]?.id,
-        content: text,
-        content_type: 'text',
-        collection: 'Quick Pins',
-      });
-      console.log('✅ Pin created successfully!');
-      clearSelection();
-      openPinboard();
-    } catch (error) {
-      console.error('❌ Error creating pin:', error);
-    }
+    clearSelection();
+    openPanel();
   };
 
   const handleAskFollowUp = (text: string) => {
@@ -110,8 +88,7 @@ export function MessageStream({ messages, onArtifactOpen, currentUserId }: Messa
 
   const handleEdit = (text: string) => {
     console.log('✏️ Edit clicked:', text);
-    alert(`Edit in artifact feature coming soon!\n\nSelected text: "${text}"`);
-    clearSelection();
+    handleCreateArtifact(text);
   };
 
   return (
@@ -134,7 +111,7 @@ export function MessageStream({ messages, onArtifactOpen, currentUserId }: Messa
       <SelectionToolbar
         selectedText={selectedText}
         position={position}
-        onPin={handlePin}
+        onCreateArtifact={handleCreateArtifact}
         onAskFollowUp={handleAskFollowUp}
         onCopy={handleCopy}
         onEdit={handleEdit}

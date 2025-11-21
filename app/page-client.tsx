@@ -9,9 +9,9 @@ import { ChannelHeader } from '@/components/nexus/ChannelHeader';
 import { MessageStream } from '@/components/nexus/MessageStream';
 import { OmniComposer } from '@/components/nexus/OmniComposer';
 import { AdaptiveCanvas } from '@/components/nexus/AdaptiveCanvas';
-import { Pinboard } from '@/components/nexus/Pinboard';
+import { ArtifactPanel } from '@/components/nexus/ArtifactPanel';
 import { EditChannelModal } from '@/components/EditChannelModal';
-import { usePinStore } from '@/stores/pinStore';
+import { useArtifactStore } from '@/stores/artifactStore';
 import type { Channel, Message as MessageType, Workspace } from '@/types';
 
 interface PageClientProps {
@@ -42,16 +42,11 @@ export function PageClient({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
-  // Pin store
-  const { pins, isPinboardOpen, closePinboard, removePin, fetchPins, togglePinboard } = usePinStore();
+  // Artifact library
+  const { artifacts, isPanelOpen: isArtifactPanelOpen, openPanel: openArtifactPanel, closePanel: closeArtifactPanel } = useArtifactStore();
 
   // Get current user from workspace
   const currentUser = workspace.users.find(u => u.id === currentUserId) || workspace.users[0];
-
-  // Load pins on mount
-  useEffect(() => {
-    fetchPins(currentUserId);
-  }, [currentUserId, fetchPins]);
 
   // Scroll to bottom when messages change or channel changes
   const scrollToBottom = () => {
@@ -399,8 +394,14 @@ export function PageClient({
             onClearHistory={handleClearHistory}
             onEditChannel={handleEditChannel}
             onDeleteChannel={handleDeleteChannel}
-            onTogglePinboard={togglePinboard}
-            pinCount={pins.length}
+            onToggleArtifacts={() => {
+              if (isArtifactPanelOpen) {
+                closeArtifactPanel();
+              } else {
+                openArtifactPanel();
+              }
+            }}
+            artifactCount={artifacts.length}
           />
 
           {/* Message Stream */}
@@ -408,7 +409,6 @@ export function PageClient({
             <MessageStream
               messages={channelMessages}
               onArtifactOpen={handleArtifactOpen}
-              currentUserId={currentUserId}
             />
 
             {/* Typing Indicators */}
@@ -468,17 +468,8 @@ export function PageClient({
           onClose={() => setShowCanvas(false)}
         />
 
-        {/* Pinboard - Slide-out Panel */}
-        <Pinboard
-          isOpen={isPinboardOpen}
-          onClose={closePinboard}
-          pins={pins}
-          onDeletePin={removePin}
-          onPinClick={(pin) => {
-            // TODO: Jump to original message or show in context
-            console.log('Pin clicked:', pin);
-          }}
-        />
+        {/* Artifact Library - Slide-out Panel */}
+        <ArtifactPanel isOpen={isArtifactPanelOpen} onClose={closeArtifactPanel} />
       </div>
 
       {/* Edit Channel Modal */}
