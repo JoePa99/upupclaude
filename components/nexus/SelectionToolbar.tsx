@@ -112,6 +112,17 @@ export function SelectionToolbar({
           tooltip="Save & edit as artifact"
         />
 
+        {/* Artifact Button */}
+        <ToolbarButton
+          icon="🧩"
+          label="Artifact"
+          onClick={() => {
+            console.log('🧩 Toolbar Artifact clicked:', selectedText.substring(0, 50));
+            onCreateArtifact(selectedText);
+          }}
+          tooltip="Save & edit as artifact"
+        />
+
         {/* Ask Follow-up Button */}
         <ToolbarButton
           icon="💬"
