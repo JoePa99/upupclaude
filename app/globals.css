@@ -52,6 +52,7 @@
     font-weight: 800;
     letter-spacing: -0.025em;
   }
+
 }
 
 /* Luminous Glass Scrollbar */
@@ -115,3 +116,10 @@ button, a, [role="button"] {
   transition-duration: 200ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Selection highlighting for pinning is applied at runtime via useTextSelection.
+   Do NOT add ::highlight(...) rules here—Turbopack rejects that pseudo-element
+   during CSS parsing and will fail the build. */
+/* If you hit a merge conflict that reintroduces a ::highlight rule, prefer the
+   version without it (keep the runtime-injected highlight instead) so builds
+   continue to succeed. */
