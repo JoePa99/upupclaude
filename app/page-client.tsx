@@ -10,8 +10,10 @@ import { MessageStream } from '@/components/nexus/MessageStream';
 import { OmniComposer } from '@/components/nexus/OmniComposer';
 import { AdaptiveCanvas } from '@/components/nexus/AdaptiveCanvas';
 import { Pinboard } from '@/components/nexus/Pinboard';
+import { ArtifactPanel } from '@/components/nexus/ArtifactPanel';
 import { EditChannelModal } from '@/components/EditChannelModal';
 import { usePinStore } from '@/stores/pinStore';
+import { useArtifactStore } from '@/stores/artifactStore';
 import type { Channel, Message as MessageType, Workspace } from '@/types';
 
 interface PageClientProps {
@@ -44,6 +46,13 @@ export function PageClient({
 
   // Pin store
   const { pins, isPinboardOpen, closePinboard, removePin, fetchPins, togglePinboard } = usePinStore();
+
+  // Artifact library
+  const artifactStore = useArtifactStore();
+  const artifactItems = artifactStore.artifacts;
+  const isArtifactPanelOpen = artifactStore.isPanelOpen;
+  const openArtifactPanel = artifactStore.openPanel;
+  const closeArtifactPanel = artifactStore.closePanel;
 
   // Get current user from workspace
   const currentUser = workspace.users.find(u => u.id === currentUserId) || workspace.users[0];
@@ -401,6 +410,14 @@ export function PageClient({
             onDeleteChannel={handleDeleteChannel}
             onTogglePinboard={togglePinboard}
             pinCount={pins.length}
+            onToggleArtifacts={() => {
+              if (isArtifactPanelOpen) {
+                closeArtifactPanel();
+              } else {
+                openArtifactPanel();
+              }
+            }}
+            artifactCount={artifactItems.length}
           />
 
           {/* Message Stream */}
@@ -479,6 +496,9 @@ export function PageClient({
             console.log('Pin clicked:', pin);
           }}
         />
+
+        {/* Artifact Library - Slide-out Panel */}
+        <ArtifactPanel isOpen={isArtifactPanelOpen} onClose={closeArtifactPanel} />
       </div>
 
       {/* Edit Channel Modal */}
