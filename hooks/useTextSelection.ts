@@ -17,6 +17,26 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
   const [position, setPosition] = useState<SelectionPosition | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const highlightNameRef = useRef('pin-selection-highlight');
+
+  const applyPersistentHighlight = (range: Range) => {
+    const cssApi = (window as any).CSS;
+    const HighlightCtor = (window as any).Highlight;
+
+    if (!cssApi?.highlights || !HighlightCtor) {
+      return;
+    }
+
+    const highlight = new HighlightCtor(range.cloneRange());
+    cssApi.highlights.set(highlightNameRef.current, highlight);
+  };
+
+  const clearPersistentHighlight = () => {
+    const cssApi = (window as any).CSS;
+    if (cssApi?.highlights) {
+      cssApi.highlights.delete(highlightNameRef.current);
+    }
+  };
 
   // Continuously restore selection while toolbar is visible
   useEffect(() => {
@@ -104,6 +124,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
 
       // Clear if no valid selection (but only if we're not showing toolbar)
       if (!savedRangeRef.current) {
+        clearPersistentHighlight();
         setSelectedText('');
         setPosition(null);
       }
@@ -119,6 +140,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
       setSelectedText('');
       setPosition(null);
       savedRangeRef.current = null;
+      clearPersistentHighlight();
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
@@ -138,6 +160,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
     setSelectedText('');
     setPosition(null);
     savedRangeRef.current = null;
+    clearPersistentHighlight();
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
