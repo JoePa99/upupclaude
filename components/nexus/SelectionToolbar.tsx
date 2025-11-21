@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 interface SelectionToolbarProps {
   selectedText: string;
   onPin: (text: string) => void;
+  onCreateArtifact: (text: string) => void;
   onAskFollowUp: (text: string) => void;
   onCopy: (text: string) => void;
   onEdit: (text: string) => void;
@@ -15,11 +16,12 @@ interface SelectionToolbarProps {
 
 /**
  * Floating toolbar that appears when text is selected
- * Provides quick actions: Pin, Ask Follow-up, Copy, Edit
+ * Provides quick actions: Pin, Artifact, Ask Follow-up, Copy, Edit
  */
 export function SelectionToolbar({
   selectedText,
   onPin,
+  onCreateArtifact,
   onAskFollowUp,
   onCopy,
   onEdit,
@@ -86,6 +88,17 @@ export function SelectionToolbar({
             onPin(selectedText);
           }}
           tooltip="Save to pinboard"
+        />
+
+        {/* Artifact Button */}
+        <ToolbarButton
+          icon="🧩"
+          label="Artifact"
+          onClick={() => {
+            console.log('🧩 Toolbar Artifact clicked:', selectedText.substring(0, 50));
+            onCreateArtifact(selectedText);
+          }}
+          tooltip="Save & edit as artifact"
         />
 
         {/* Ask Follow-up Button */}

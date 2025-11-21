@@ -11,6 +11,7 @@ import { SelectionHighlightOverlay } from './SelectionHighlightOverlay';
 import { SelectionToolbar } from './SelectionToolbar';
 import { useTextSelection } from '@/hooks/useTextSelection';
 import { usePinStore } from '@/stores/pinStore';
+import { useArtifactStore } from '@/stores/artifactStore';
 import { ExpandableCodeBlock } from './ExpandableCodeBlock';
 import { TableOfContents } from './TableOfContents';
 
@@ -48,13 +49,28 @@ function CopyButton({ code }: { code: string }) {
  * NEXUS Message Stream - Center chat with glass cards
  * Human: Minimal text on glass
  * AI Agent: Super-Glass cards with collapsible reasoning + action buttons
- * Now with text selection and pinning!
+ * Now with text selection plus pinning and artifact drafting!
  */
 export function MessageStream({ messages, onArtifactOpen, currentUserId }: MessageStreamProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { selectedText, position, highlightRects, clearSelection, restoreSelection } = useTextSelection(containerRef);
   const { addPin, openPinboard } = usePinStore();
+  const { addArtifact, openPanel } = useArtifactStore();
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
+
+  const handleCreateArtifact = (text: string) => {
+    const fallbackMessageId = currentMessageId || messages[messages.length - 1]?.id;
+    const title = text.split('\n').find((line) => line.trim().length > 0)?.slice(0, 80) || 'New Artifact';
+
+    addArtifact({
+      content: text,
+      title,
+      sourceMessageId: fallbackMessageId,
+    });
+
+    clearSelection();
+    openPanel();
+  };
 
   const handlePin = async (text: string) => {
     console.log('📌 Pin clicked!', { text, currentMessageId, currentUserId });
@@ -110,8 +126,7 @@ export function MessageStream({ messages, onArtifactOpen, currentUserId }: Messa
 
   const handleEdit = (text: string) => {
     console.log('✏️ Edit clicked:', text);
-    alert(`Edit in artifact feature coming soon!\n\nSelected text: "${text}"`);
-    clearSelection();
+    handleCreateArtifact(text);
   };
 
   return (
@@ -135,6 +150,7 @@ export function MessageStream({ messages, onArtifactOpen, currentUserId }: Messa
         selectedText={selectedText}
         position={position}
         onPin={handlePin}
+        onCreateArtifact={handleCreateArtifact}
         onAskFollowUp={handleAskFollowUp}
         onCopy={handleCopy}
         onEdit={handleEdit}
