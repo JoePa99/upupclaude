@@ -53,6 +53,12 @@
     letter-spacing: -0.025em;
   }
 
+  /* Persistent selection highlight for pinning */
+  ::highlight(pin-selection-highlight) {
+    background: rgba(86, 227, 255, 0.3);
+    border-radius: 6px;
+    box-shadow: 0 0 0 1px rgba(86, 227, 255, 0.4);
+  }
 }
 
 /* Luminous Glass Scrollbar */
