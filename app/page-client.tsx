@@ -9,8 +9,10 @@ import { ChannelHeader } from '@/components/nexus/ChannelHeader';
 import { MessageStream } from '@/components/nexus/MessageStream';
 import { OmniComposer } from '@/components/nexus/OmniComposer';
 import { AdaptiveCanvas } from '@/components/nexus/AdaptiveCanvas';
+import { Pinboard } from '@/components/nexus/Pinboard';
 import { ArtifactPanel } from '@/components/nexus/ArtifactPanel';
 import { EditChannelModal } from '@/components/EditChannelModal';
+import { usePinStore } from '@/stores/pinStore';
 import { useArtifactStore } from '@/stores/artifactStore';
 import type { Channel, Message as MessageType, Workspace } from '@/types';
 
@@ -41,6 +43,9 @@ export function PageClient({
   const [showEditChannel, setShowEditChannel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
+
+  // Artifact library
+  const { artifacts, isPanelOpen: isArtifactPanelOpen, openPanel: openArtifactPanel, closePanel: closeArtifactPanel } = useArtifactStore();
 
   // Artifact library
   const { artifacts, isPanelOpen: isArtifactPanelOpen, openPanel: openArtifactPanel, closePanel: closeArtifactPanel } = useArtifactStore();
@@ -394,6 +399,8 @@ export function PageClient({
             onClearHistory={handleClearHistory}
             onEditChannel={handleEditChannel}
             onDeleteChannel={handleDeleteChannel}
+            onTogglePinboard={togglePinboard}
+            pinCount={pins.length}
             onToggleArtifacts={() => {
               if (isArtifactPanelOpen) {
                 closeArtifactPanel();
@@ -466,6 +473,18 @@ export function PageClient({
           isOpen={showCanvas}
           message={canvasMessage}
           onClose={() => setShowCanvas(false)}
+        />
+
+        {/* Pinboard - Slide-out Panel */}
+        <Pinboard
+          isOpen={isPinboardOpen}
+          onClose={closePinboard}
+          pins={pins}
+          onDeletePin={removePin}
+          onPinClick={(pin) => {
+            // TODO: Jump to original message or show in context
+            console.log('Pin clicked:', pin);
+          }}
         />
 
         {/* Artifact Library - Slide-out Panel */}
