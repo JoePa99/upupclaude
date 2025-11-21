@@ -81,3 +81,12 @@ export interface Pin {
     context?: string;
   };
 }
+
+export interface Artifact {
+  id: string;
+  title: string;
+  content: string;
+  sourceMessageId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
