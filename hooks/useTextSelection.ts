@@ -18,6 +18,21 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
   const savedRangeRef = useRef<Range | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const highlightNameRef = useRef('pin-selection-highlight');
+  const highlightStyleRef = useRef<HTMLStyleElement | null>(null);
+
+  useEffect(() => {
+    // Inject highlight styling at runtime to avoid bundler CSS parser limitations
+    const styleEl = document.createElement('style');
+    styleEl.setAttribute('data-pin-highlight-style', '');
+    styleEl.textContent = `::highlight(${highlightNameRef.current}) { background: rgba(86, 227, 255, 0.3); border-radius: 6px; box-shadow: 0 0 0 1px rgba(86, 227, 255, 0.4); }`;
+    document.head.appendChild(styleEl);
+    highlightStyleRef.current = styleEl;
+
+    return () => {
+      styleEl.remove();
+      highlightStyleRef.current = null;
+    };
+  }, []);
 
   const applyPersistentHighlight = (range: Range) => {
     const cssApi = (window as any).CSS;
@@ -41,6 +56,18 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
   // Continuously restore selection while toolbar is visible
   useEffect(() => {
     if (selectedText && savedRangeRef.current) {
+      const restoreSelection = () => {
+        const selection = window.getSelection();
+        const currentText = selection?.toString() ?? '';
+
+        // Restore when the browser collapses the range (common when clicking the toolbar)
+        // or if the selection was completely removed
+        if (selection && (selection.rangeCount === 0 || selection.isCollapsed || currentText === '')) {
+          try {
+            selection.removeAllRanges();
+            selection.addRange(savedRangeRef.current!);
+          } catch (e) {
+            // Range might be invalid, ignore
       const restoreLoop = () => {
         if (savedRangeRef.current) {
           const selection = window.getSelection();
@@ -101,6 +128,8 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
 
             // Save the range IMMEDIATELY before anything can clear it
             savedRangeRef.current = range.cloneRange();
+
+            applyPersistentHighlight(range);
 
             // Force the browser to keep showing the selection even after mouseup
             requestAnimationFrame(() => {
