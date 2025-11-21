@@ -50,6 +50,15 @@ export function PageClient({
   // Artifact library
   const { artifacts, isPanelOpen: isArtifactPanelOpen, openPanel: openArtifactPanel, closePanel: closeArtifactPanel } = useArtifactStore();
 
+  // Artifact library
+  const artifactStore = useArtifactStore();
+  const {
+    artifacts: artifactItems,
+    isPanelOpen: isArtifactPanelOpen,
+    openPanel: openArtifactPanel,
+    closePanel: closeArtifactPanel,
+  } = artifactStore;
+
   // Get current user from workspace
   const currentUser = workspace.users.find(u => u.id === currentUserId) || workspace.users[0];
 
@@ -408,7 +417,7 @@ export function PageClient({
                 openArtifactPanel();
               }
             }}
-            artifactCount={artifacts.length}
+            artifactCount={artifactItems.length}
           />
 
           {/* Message Stream */}
