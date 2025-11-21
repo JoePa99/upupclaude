@@ -17,28 +17,72 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
   const [position, setPosition] = useState<SelectionPosition | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const highlightNameRef = useRef('pin-selection-highlight');
+  const highlightStyleRef = useRef<HTMLStyleElement | null>(null);
+
+  useEffect(() => {
+    // Inject highlight styling at runtime to avoid bundler CSS parser limitations
+    const styleEl = document.createElement('style');
+    styleEl.setAttribute('data-pin-highlight-style', '');
+    styleEl.textContent = `::highlight(${highlightNameRef.current}) { background: rgba(86, 227, 255, 0.3); border-radius: 6px; box-shadow: 0 0 0 1px rgba(86, 227, 255, 0.4); }`;
+    document.head.appendChild(styleEl);
+    highlightStyleRef.current = styleEl;
+
+    return () => {
+      styleEl.remove();
+      highlightStyleRef.current = null;
+    };
+  }, []);
+
+  const applyPersistentHighlight = (range: Range) => {
+    const cssApi = (window as any).CSS;
+    const HighlightCtor = (window as any).Highlight;
+
+    if (!cssApi?.highlights || !HighlightCtor) {
+      return;
+    }
+
+    const highlight = new HighlightCtor(range.cloneRange());
+    cssApi.highlights.set(highlightNameRef.current, highlight);
+  };
+
+  const clearPersistentHighlight = () => {
+    const cssApi = (window as any).CSS;
+    if (cssApi?.highlights) {
+      cssApi.highlights.delete(highlightNameRef.current);
+    }
+  };
 
   // Continuously restore selection while toolbar is visible
   useEffect(() => {
     if (selectedText && savedRangeRef.current) {
-      const restoreLoop = () => {
-        if (savedRangeRef.current) {
-          const selection = window.getSelection();
-          if (selection && selection.rangeCount === 0) {
-            // Selection was cleared, restore it
-            try {
-              selection.addRange(savedRangeRef.current);
-            } catch (e) {
-              // Range might be invalid, ignore
-            }
+      const restoreSelection = () => {
+        const selection = window.getSelection();
+        const currentText = selection?.toString() ?? '';
+
+        // Restore when the browser collapses the range (common when clicking the toolbar)
+        // or if the selection was completely removed
+        if (selection && (selection.rangeCount === 0 || selection.isCollapsed || currentText === '')) {
+          try {
+            selection.removeAllRanges();
+            selection.addRange(savedRangeRef.current!);
+          } catch (e) {
+            // Range might be invalid, ignore
           }
         }
-        animationFrameRef.current = requestAnimationFrame(restoreLoop);
       };
 
-      animationFrameRef.current = requestAnimationFrame(restoreLoop);
+      const handleSelectionChange = () => {
+        // Delay restoration to after the browser updates the selection
+        animationFrameRef.current = requestAnimationFrame(restoreSelection);
+      };
+
+      document.addEventListener('selectionchange', handleSelectionChange);
+      // Immediately restore once so mouseup doesn't clear the highlight
+      handleSelectionChange();
 
       return () => {
+        document.removeEventListener('selectionchange', handleSelectionChange);
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
         }
@@ -71,6 +115,21 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
             // Save the range IMMEDIATELY before anything can clear it
             savedRangeRef.current = range.cloneRange();
 
+            applyPersistentHighlight(range);
+
+            // Force the browser to keep showing the selection even after mouseup
+            requestAnimationFrame(() => {
+              try {
+                const selection = window.getSelection();
+                selection?.removeAllRanges();
+                if (savedRangeRef.current) {
+                  selection?.addRange(savedRangeRef.current);
+                }
+              } catch (e) {
+                // ignore invalid ranges
+              }
+            });
+
             setSelectedText(text);
             setPosition(toolbarPosition);
             return;
@@ -80,6 +139,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
 
       // Clear if no valid selection (but only if we're not showing toolbar)
       if (!savedRangeRef.current) {
+        clearPersistentHighlight();
         setSelectedText('');
         setPosition(null);
       }
@@ -95,6 +155,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
       setSelectedText('');
       setPosition(null);
       savedRangeRef.current = null;
+      clearPersistentHighlight();
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
@@ -114,6 +175,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
     setSelectedText('');
     setPosition(null);
     savedRangeRef.current = null;
+    clearPersistentHighlight();
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
