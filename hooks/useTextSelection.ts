@@ -25,6 +25,56 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
   const [highlightRects, setHighlightRects] = useState<HighlightRect[]>([]);
   const savedRangeRef = useRef<Range | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const highlightLayerRef = useRef<HTMLDivElement | null>(null);
+
+  const ensureHighlightLayer = () => {
+    if (typeof document === 'undefined') return null;
+    if (!highlightLayerRef.current) {
+      const layer = document.createElement('div');
+      layer.setAttribute('data-pin-highlight-layer', 'true');
+      layer.style.position = 'absolute';
+      layer.style.top = '0';
+      layer.style.left = '0';
+      layer.style.width = '100%';
+      layer.style.height = '100%';
+      layer.style.pointerEvents = 'none';
+      layer.style.zIndex = '9999';
+      document.body.appendChild(layer);
+      highlightLayerRef.current = layer;
+    }
+    return highlightLayerRef.current;
+  };
+
+  const clearPersistentHighlight = () => {
+    const layer = highlightLayerRef.current;
+    if (layer) {
+      layer.innerHTML = '';
+    }
+  };
+
+  const renderPersistentHighlight = () => {
+    const layer = ensureHighlightLayer();
+    if (!layer) return;
+
+    layer.innerHTML = '';
+
+    if (!savedRangeRef.current) return;
+
+    const rects = Array.from(savedRangeRef.current.getClientRects());
+    rects.forEach((rect) => {
+      if (rect.width === 0 || rect.height === 0) return;
+      const highlight = document.createElement('div');
+      highlight.style.position = 'absolute';
+      highlight.style.left = `${rect.left + window.scrollX}px`;
+      highlight.style.top = `${rect.top + window.scrollY}px`;
+      highlight.style.width = `${rect.width}px`;
+      highlight.style.height = `${rect.height}px`;
+      highlight.style.background = 'rgba(86, 227, 255, 0.3)';
+      highlight.style.borderRadius = '6px';
+      highlight.style.boxShadow = '0 0 0 1px rgba(86, 227, 255, 0.4)';
+      highlightLayerRef.current?.appendChild(highlight);
+    });
+  };
 
   const computeHighlightRects = (range: Range | null) => {
     if (!range) return [] as HighlightRect[];
