@@ -74,6 +74,13 @@ export function PageClient({
   const openArtifactPanel = artifactStore.openPanel;
   const closeArtifactPanel = artifactStore.closePanel;
 
+  // Artifact library
+  const artifactStore = useArtifactStore();
+  const artifactItems = artifactStore.artifacts;
+  const isArtifactPanelOpen = artifactStore.isPanelOpen;
+  const openArtifactPanel = artifactStore.openPanel;
+  const closeArtifactPanel = artifactStore.closePanel;
+
   // Get current user from workspace
   const currentUser = workspace.users.find(u => u.id === currentUserId) || workspace.users[0];
 
