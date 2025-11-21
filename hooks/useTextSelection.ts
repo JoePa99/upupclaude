@@ -17,6 +17,45 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
   const [position, setPosition] = useState<SelectionPosition | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const highlightNameRef = useRef('pin-selection-highlight');
+  const highlightStyleRef = useRef<HTMLStyleElement | null>(null);
+
+  useEffect(() => {
+    // Inject highlight styling at runtime to avoid bundler CSS parser limitations
+    const styleEl = document.createElement('style');
+    styleEl.setAttribute('data-pin-highlight-style', '');
+    styleEl.textContent = `::highlight(${highlightNameRef.current}) { background: rgba(86, 227, 255, 0.3); border-radius: 6px; box-shadow: 0 0 0 1px rgba(86, 227, 255, 0.4); }`;
+    document.head.appendChild(styleEl);
+    highlightStyleRef.current = styleEl;
+
+    return () => {
+      styleEl.remove();
+      highlightStyleRef.current = null;
+    };
+  }, []);
+
+  const applyPersistentHighlight = (range: Range) => {
+    const cssApi = (window as any).CSS;
+    const HighlightCtor = (window as any).Highlight;
+
+    if (!cssApi?.highlights || !HighlightCtor) {
+      return;
+    }
+
+    const highlight = new HighlightCtor(range.cloneRange());
+    cssApi.highlights.set(highlightNameRef.current, highlight);
+  };
+
+  const clearPersistentHighlight = () => {
+    const cssApi = (window as any).CSS;
+    if (cssApi?.highlights) {
+      cssApi.highlights.delete(highlightNameRef.current);
+    }
+  };
+
+  const clearPersistentHighlight = () => {};
+
+  const clearPersistentHighlight = () => {};
 
   const clearPersistentHighlight = () => {};
 
