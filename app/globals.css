@@ -124,15 +124,7 @@ button, a, [role="button"] {
 }
 
 /* Pin selection highlighting is kept alive by re-applying the saved Range in
-   useTextSelection. Do NOT add ::highlight(...) rules here—Turbopack rejects
-   that pseudo-element during CSS parsing and will fail the build. If you see a
-   merge conflict that reintroduces a ::highlight rule, choose the version
-   without it so builds continue to succeed. */
-/* Selection highlighting for pinning is applied at runtime via useTextSelection.
-   Do NOT add ::highlight(...) rules here—Turbopack rejects that pseudo-element
-   during CSS parsing and will fail the build. */
-/* If you hit a merge conflict that reintroduces a ::highlight rule, prefer the
-   version without it (keep the runtime-injected highlight instead) so builds
-   continue to succeed. */
-/* Selection highlighting for pinning is applied at runtime via useTextSelection
-   to avoid bundler parsing issues with the CSS Highlight pseudo-element. */
+   useTextSelection. Avoid adding the CSS Highlight API selector (::highlight)
+   here—Turbopack rejects that pseudo-element during CSS parsing and will fail
+   the build. If you see a merge conflict that reintroduces a ::highlight rule,
+   choose the version without it so builds continue to succeed. */
