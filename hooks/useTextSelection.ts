@@ -21,18 +21,20 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
   // Continuously restore selection while toolbar is visible
   useEffect(() => {
     if (selectedText && savedRangeRef.current) {
-      const restoreSelection = () => {
-        const selection = window.getSelection();
-        const currentText = selection?.toString() ?? '';
+      const restoreLoop = () => {
+        if (savedRangeRef.current) {
+          const selection = window.getSelection();
+          const currentText = selection?.toString() ?? '';
 
-        // Restore when the browser collapses the range (common when clicking the toolbar)
-        // or if the selection was completely removed
-        if (selection && (selection.rangeCount === 0 || selection.isCollapsed || currentText === '')) {
-          try {
-            selection.removeAllRanges();
-            selection.addRange(savedRangeRef.current!);
-          } catch (e) {
-            // Range might be invalid, ignore
+          // Restore when the browser collapses the range (common when clicking the toolbar)
+          // or if the selection was completely removed
+          if (selection && (selection.rangeCount === 0 || currentText === '')) {
+            try {
+              selection.removeAllRanges();
+              selection.addRange(savedRangeRef.current);
+            } catch (e) {
+              // Range might be invalid, ignore
+            }
           }
         }
       };
