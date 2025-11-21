@@ -17,47 +17,56 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
   const [position, setPosition] = useState<SelectionPosition | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const highlightNameRef = useRef('pin-selection-highlight');
-  const highlightStyleRef = useRef<HTMLStyleElement | null>(null);
+  const highlightLayerRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    // Inject highlight styling at runtime to avoid bundler CSS parser limitations
-    const styleEl = document.createElement('style');
-    styleEl.setAttribute('data-pin-highlight-style', '');
-    styleEl.textContent = `::highlight(${highlightNameRef.current}) { background: rgba(86, 227, 255, 0.3); border-radius: 6px; box-shadow: 0 0 0 1px rgba(86, 227, 255, 0.4); }`;
-    document.head.appendChild(styleEl);
-    highlightStyleRef.current = styleEl;
-
-    return () => {
-      styleEl.remove();
-      highlightStyleRef.current = null;
-    };
-  }, []);
-
-  const applyPersistentHighlight = (range: Range) => {
-    const cssApi = (window as any).CSS;
-    const HighlightCtor = (window as any).Highlight;
-
-    if (!cssApi?.highlights || !HighlightCtor) {
-      return;
+  const ensureHighlightLayer = () => {
+    if (typeof document === 'undefined') return null;
+    if (!highlightLayerRef.current) {
+      const layer = document.createElement('div');
+      layer.setAttribute('data-pin-highlight-layer', 'true');
+      layer.style.position = 'absolute';
+      layer.style.top = '0';
+      layer.style.left = '0';
+      layer.style.width = '100%';
+      layer.style.height = '100%';
+      layer.style.pointerEvents = 'none';
+      layer.style.zIndex = '9999';
+      document.body.appendChild(layer);
+      highlightLayerRef.current = layer;
     }
-
-    const highlight = new HighlightCtor(range.cloneRange());
-    cssApi.highlights.set(highlightNameRef.current, highlight);
+    return highlightLayerRef.current;
   };
 
   const clearPersistentHighlight = () => {
-    const cssApi = (window as any).CSS;
-    if (cssApi?.highlights) {
-      cssApi.highlights.delete(highlightNameRef.current);
+    const layer = highlightLayerRef.current;
+    if (layer) {
+      layer.innerHTML = '';
     }
   };
 
-  const clearPersistentHighlight = () => {};
+  const renderPersistentHighlight = () => {
+    const layer = ensureHighlightLayer();
+    if (!layer) return;
 
-  const clearPersistentHighlight = () => {};
+    layer.innerHTML = '';
 
-  const clearPersistentHighlight = () => {};
+    if (!savedRangeRef.current) return;
+
+    const rects = Array.from(savedRangeRef.current.getClientRects());
+    rects.forEach((rect) => {
+      if (rect.width === 0 || rect.height === 0) return;
+      const highlight = document.createElement('div');
+      highlight.style.position = 'absolute';
+      highlight.style.left = `${rect.left + window.scrollX}px`;
+      highlight.style.top = `${rect.top + window.scrollY}px`;
+      highlight.style.width = `${rect.width}px`;
+      highlight.style.height = `${rect.height}px`;
+      highlight.style.background = 'rgba(86, 227, 255, 0.3)';
+      highlight.style.borderRadius = '6px';
+      highlight.style.boxShadow = '0 0 0 1px rgba(86, 227, 255, 0.4)';
+      highlightLayerRef.current?.appendChild(highlight);
+    });
+  };
 
   // Continuously restore selection while toolbar is visible
   useEffect(() => {
@@ -72,6 +81,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
           try {
             selection.removeAllRanges();
             selection.addRange(savedRangeRef.current!);
+            renderPersistentHighlight();
           } catch (e) {
             // Range might be invalid, ignore
           }
@@ -92,6 +102,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
         }
+        clearPersistentHighlight();
       };
     }
   }, [selectedText]);
@@ -120,6 +131,9 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
 
             // Save the range IMMEDIATELY before anything can clear it
             savedRangeRef.current = range.cloneRange();
+
+            // Draw a persistent overlay so the highlight remains even if the browser clears native selection
+            renderPersistentHighlight();
 
             // Force the browser to keep showing the selection even after mouseup
             requestAnimationFrame(() => {
@@ -166,14 +180,18 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
       }
     };
 
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('mousedown', handleMouseDown);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('mousedown', handleMouseDown);
+      document.addEventListener('scroll', renderPersistentHighlight, true);
+      window.addEventListener('resize', renderPersistentHighlight);
 
-    return () => {
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('mousedown', handleMouseDown);
-    };
-  }, [containerRef]);
+      return () => {
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('mousedown', handleMouseDown);
+        document.removeEventListener('scroll', renderPersistentHighlight, true);
+        window.removeEventListener('resize', renderPersistentHighlight);
+      };
+    }, [containerRef]);
 
   const clearSelection = () => {
     setSelectedText('');
@@ -194,11 +212,21 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
         const selection = window.getSelection();
         selection?.removeAllRanges();
         selection?.addRange(savedRangeRef.current);
+        renderPersistentHighlight();
       } catch (e) {
         console.warn('Failed to restore selection:', e);
       }
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (highlightLayerRef.current) {
+        highlightLayerRef.current.remove();
+        highlightLayerRef.current = null;
+      }
+    };
+  }, []);
 
   return { selectedText, position, clearSelection, restoreSelection };
 }
