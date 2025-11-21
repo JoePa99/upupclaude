@@ -123,6 +123,11 @@ button, a, [role="button"] {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Pin selection highlighting is kept alive by re-applying the saved Range in
+   useTextSelection. Do NOT add ::highlight(...) rules here—Turbopack rejects
+   that pseudo-element during CSS parsing and will fail the build. If you see a
+   merge conflict that reintroduces a ::highlight rule, choose the version
+   without it so builds continue to succeed. */
 /* Selection highlighting for pinning is applied at runtime via useTextSelection.
    Do NOT add ::highlight(...) rules here—Turbopack rejects that pseudo-element
    during CSS parsing and will fail the build. */

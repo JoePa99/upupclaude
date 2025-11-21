@@ -53,6 +53,8 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
     }
   };
 
+  const clearPersistentHighlight = () => {};
+
   // Continuously restore selection while toolbar is visible
   useEffect(() => {
     if (selectedText && savedRangeRef.current) {
