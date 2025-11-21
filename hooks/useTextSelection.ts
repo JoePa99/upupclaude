@@ -12,9 +12,17 @@ interface SelectionPosition {
  * Returns: selectedText, position, and clear function
  * FIXED: Positions toolbar at selection END so mouse doesn't leave selection area
  */
+type HighlightRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
 export function useTextSelection<T extends HTMLElement = HTMLElement>(containerRef: React.RefObject<T | null>) {
   const [selectedText, setSelectedText] = useState('');
   const [position, setPosition] = useState<SelectionPosition | null>(null);
+  const [highlightRects, setHighlightRects] = useState<HighlightRect[]>([]);
   const savedRangeRef = useRef<Range | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const highlightLayerRef = useRef<HTMLDivElement | null>(null);
@@ -68,6 +76,23 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
     });
   };
 
+  const computeHighlightRects = (range: Range | null) => {
+    if (!range) return [] as HighlightRect[];
+
+    return Array.from(range.getClientRects())
+      .filter((rect) => rect.width > 0 && rect.height > 0)
+      .map((rect) => ({
+        left: rect.left + window.scrollX,
+        top: rect.top + window.scrollY,
+        width: rect.width,
+        height: rect.height,
+      }));
+  };
+
+  const refreshHighlightRects = () => {
+    setHighlightRects(computeHighlightRects(savedRangeRef.current));
+  };
+
   // Continuously restore selection while toolbar is visible
   useEffect(() => {
     if (selectedText && savedRangeRef.current) {
@@ -81,11 +106,12 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
           try {
             selection.removeAllRanges();
             selection.addRange(savedRangeRef.current!);
-            renderPersistentHighlight();
           } catch (e) {
             // Range might be invalid, ignore
           }
         }
+
+        refreshHighlightRects();
       };
 
       const handleSelectionChange = () => {
@@ -102,7 +128,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
         }
-        clearPersistentHighlight();
+        setHighlightRects([]);
       };
     }
   }, [selectedText]);
@@ -133,7 +159,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
             savedRangeRef.current = range.cloneRange();
 
             // Draw a persistent overlay so the highlight remains even if the browser clears native selection
-            renderPersistentHighlight();
+            refreshHighlightRects();
 
             // Force the browser to keep showing the selection even after mouseup
             requestAnimationFrame(() => {
@@ -142,6 +168,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
                 selection?.removeAllRanges();
                 if (savedRangeRef.current) {
                   selection?.addRange(savedRangeRef.current);
+                  refreshHighlightRects();
                 }
               } catch (e) {
                 // ignore invalid ranges
@@ -157,7 +184,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
 
       // Clear if no valid selection (but only if we're not showing toolbar)
       if (!savedRangeRef.current) {
-        clearPersistentHighlight();
+        setHighlightRects([]);
         setSelectedText('');
         setPosition(null);
       }
@@ -173,7 +200,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
       setSelectedText('');
       setPosition(null);
       savedRangeRef.current = null;
-      clearPersistentHighlight();
+      setHighlightRects([]);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
@@ -182,14 +209,14 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
 
       document.addEventListener('mouseup', handleMouseUp);
       document.addEventListener('mousedown', handleMouseDown);
-      document.addEventListener('scroll', renderPersistentHighlight, true);
-      window.addEventListener('resize', renderPersistentHighlight);
+      document.addEventListener('scroll', refreshHighlightRects, true);
+      window.addEventListener('resize', refreshHighlightRects);
 
       return () => {
         document.removeEventListener('mouseup', handleMouseUp);
         document.removeEventListener('mousedown', handleMouseDown);
-        document.removeEventListener('scroll', renderPersistentHighlight, true);
-        window.removeEventListener('resize', renderPersistentHighlight);
+        document.removeEventListener('scroll', refreshHighlightRects, true);
+        window.removeEventListener('resize', refreshHighlightRects);
       };
     }, [containerRef]);
 
@@ -197,7 +224,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
     setSelectedText('');
     setPosition(null);
     savedRangeRef.current = null;
-    clearPersistentHighlight();
+    setHighlightRects([]);
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
@@ -212,7 +239,7 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
         const selection = window.getSelection();
         selection?.removeAllRanges();
         selection?.addRange(savedRangeRef.current);
-        renderPersistentHighlight();
+        refreshHighlightRects();
       } catch (e) {
         console.warn('Failed to restore selection:', e);
       }
@@ -221,13 +248,10 @@ export function useTextSelection<T extends HTMLElement = HTMLElement>(containerR
 
   useEffect(() => {
     return () => {
-      if (highlightLayerRef.current) {
-        highlightLayerRef.current.remove();
-        highlightLayerRef.current = null;
-      }
+      setHighlightRects([]);
     };
   }, []);
 
-  return { selectedText, position, clearSelection, restoreSelection };
+  return { selectedText, position, highlightRects, clearSelection, restoreSelection };
 }
 
