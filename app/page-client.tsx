@@ -8,12 +8,7 @@ import { NexusSidebar } from '@/components/nexus/NexusSidebar';
 import { ChannelHeader } from '@/components/nexus/ChannelHeader';
 import { MessageStream } from '@/components/nexus/MessageStream';
 import { OmniComposer } from '@/components/nexus/OmniComposer';
-import { AdaptiveCanvas } from '@/components/nexus/AdaptiveCanvas';
-import { Pinboard } from '@/components/nexus/Pinboard';
-import { ArtifactPanel } from '@/components/nexus/ArtifactPanel';
 import { EditChannelModal } from '@/components/EditChannelModal';
-import { usePinStore } from '@/stores/pinStore';
-import { useArtifactStore } from '@/stores/artifactStore';
 import type { Channel, Message as MessageType, Workspace } from '@/types';
 
 interface PageClientProps {
@@ -25,7 +20,7 @@ interface PageClientProps {
 
 /**
  * NEXUS OS - Main Application Layout
- * Luminous Glass aesthetic with Sidebar, Stream, Omni-Composer, and Adaptive Canvas
+ * Clean, lightweight conversation experience with structured output containers
  */
 export function PageClient({
   initialWorkspace,
@@ -38,63 +33,9 @@ export function PageClient({
   const [messages, setMessages] = useState<MessageType[]>(initialMessages);
   const [sending, setSending] = useState(false);
   const [typingAssistants, setTypingAssistants] = useState<string[]>([]);
-  const [canvasMessage, setCanvasMessage] = useState<MessageType | null>(null);
-  const [showCanvas, setShowCanvas] = useState(false);
   const [showEditChannel, setShowEditChannel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
-
-  // Artifact library
-  const { artifacts, isPanelOpen: isArtifactPanelOpen, openPanel: openArtifactPanel, closePanel: closeArtifactPanel } = useArtifactStore();
-
-  // Artifact library
-  const { artifacts, isPanelOpen: isArtifactPanelOpen, openPanel: openArtifactPanel, closePanel: closeArtifactPanel } = useArtifactStore();
-
-  // Artifact library
-  const artifactStore = useArtifactStore();
-  const {
-    artifacts: artifactItems,
-    isPanelOpen: isArtifactPanelOpen,
-    openPanel: openArtifactPanel,
-    closePanel: closeArtifactPanel,
-  } = artifactStore;
-
-  // Artifact library
-  const {
-    artifacts: artifactItems,
-    isPanelOpen: isArtifactPanelOpen,
-    openPanel: openArtifactPanel,
-    closePanel: closeArtifactPanel,
-  } = useArtifactStore();
-
-  // Artifact library
-  const artifactStore = useArtifactStore();
-  const artifactItems = artifactStore.artifacts;
-  const isArtifactPanelOpen = artifactStore.isPanelOpen;
-  const openArtifactPanel = artifactStore.openPanel;
-  const closeArtifactPanel = artifactStore.closePanel;
-
-  // Artifact library
-  const artifactStore = useArtifactStore();
-  const artifactItems = artifactStore.artifacts;
-  const isArtifactPanelOpen = artifactStore.isPanelOpen;
-  const openArtifactPanel = artifactStore.openPanel;
-  const closeArtifactPanel = artifactStore.closePanel;
-
-  // Artifact library
-  const {
-    artifacts: artifactItems,
-    isPanelOpen: isArtifactPanelOpen,
-    openPanel: openArtifactPanel,
-    closePanel: closeArtifactPanel,
-  } = useArtifactStore();
-
-  // Artifact library
-  const artifactStore = useArtifactStore();
-  const artifactItems = artifactStore.artifacts;
-  const isArtifactPanelOpen = artifactStore.isPanelOpen;
-  const openArtifactPanel = artifactStore.openPanel;
-  const closeArtifactPanel = artifactStore.closePanel;
 
   // Get current user from workspace
   const currentUser = workspace.users.find(u => u.id === currentUserId) || workspace.users[0];
@@ -415,11 +356,6 @@ export function PageClient({
     }
   };
 
-  const handleArtifactOpen = (message: MessageType) => {
-    setCanvasMessage(message);
-    setShowCanvas(true);
-  };
-
   return (
     <>
       {/* Mesh Gradient Background */}
@@ -445,24 +381,11 @@ export function PageClient({
             onClearHistory={handleClearHistory}
             onEditChannel={handleEditChannel}
             onDeleteChannel={handleDeleteChannel}
-            onTogglePinboard={togglePinboard}
-            pinCount={pins.length}
-            onToggleArtifacts={() => {
-              if (isArtifactPanelOpen) {
-                closeArtifactPanel();
-              } else {
-                openArtifactPanel();
-              }
-            }}
-            artifactCount={artifactItems.length}
           />
 
           {/* Message Stream */}
           <div className="flex-1 overflow-y-auto pb-32">
-            <MessageStream
-              messages={channelMessages}
-              onArtifactOpen={handleArtifactOpen}
-            />
+            <MessageStream messages={channelMessages} />
 
             {/* Typing Indicators */}
             {typingAssistants.length > 0 && (
@@ -513,28 +436,6 @@ export function PageClient({
           onSendMessage={handleSendMessage}
           disabled={sending}
         />
-
-        {/* Adaptive Canvas - Slide-out Panel */}
-        <AdaptiveCanvas
-          isOpen={showCanvas}
-          message={canvasMessage}
-          onClose={() => setShowCanvas(false)}
-        />
-
-        {/* Pinboard - Slide-out Panel */}
-        <Pinboard
-          isOpen={isPinboardOpen}
-          onClose={closePinboard}
-          pins={pins}
-          onDeletePin={removePin}
-          onPinClick={(pin) => {
-            // TODO: Jump to original message or show in context
-            console.log('Pin clicked:', pin);
-          }}
-        />
-
-        {/* Artifact Library - Slide-out Panel */}
-        <ArtifactPanel isOpen={isArtifactPanelOpen} onClose={closeArtifactPanel} />
       </div>
 
       {/* Edit Channel Modal */}
