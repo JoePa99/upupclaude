@@ -65,9 +65,11 @@ export async function POST(request: Request) {
           const callbacks = {
             onToken: (token: string) => {
               fullText += token;
+              console.log('🔤 Sending token to client:', token.substring(0, 50));
               sendEvent('token', { token, messageId });
             },
             onComplete: async (text: string) => {
+              console.log('✅ Stream complete, total length:', text.length);
               // Update message with complete content
               const { error: updateError } = await (adminSupabase
                 .from('messages') as any)
@@ -82,13 +84,14 @@ export async function POST(request: Request) {
               controller.close();
             },
             onError: (error: Error) => {
-              console.error('Streaming error:', error);
+              console.error('❌ Streaming error:', error);
               sendEvent('error', { error: error.message });
               controller.close();
             },
           };
 
           // Call appropriate streaming provider
+          console.log('🌊 Starting stream with provider:', assistant.model_provider);
           if (assistant.model_provider === 'openai') {
             await streamOpenAI(assistant, userMessage, callbacks);
           } else if (assistant.model_provider === 'anthropic') {
