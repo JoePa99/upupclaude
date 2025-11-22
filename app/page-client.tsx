@@ -319,8 +319,20 @@ export function PageClient({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(streamConfig),
     }).then(async (response) => {
+      console.log('📡 Stream response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Stream request failed:', response.status, errorText);
+        setTypingAssistants((prev) => prev.filter((id) => id !== streamConfig.assistantId));
+        return;
+      }
+
       const reader = response.body?.getReader();
-      if (!reader) return;
+      if (!reader) {
+        console.error('❌ No response body reader available');
+        return;
+      }
 
       const decoder = new TextDecoder();
       let messageId: string | null = null;
@@ -330,10 +342,15 @@ export function PageClient({
       try {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            console.log('📡 Stream reader done');
+            break;
+          }
 
           // Add new chunk to buffer
-          buffer += decoder.decode(value, { stream: true });
+          const chunk = decoder.decode(value, { stream: true });
+          console.log('📦 Received chunk:', chunk.length, 'bytes');
+          buffer += chunk;
 
           // Process complete lines
           const lines = buffer.split('\n');
@@ -346,6 +363,7 @@ export function PageClient({
 
             if (line.startsWith('event: ')) {
               const event = line.slice(7).trim();
+              console.log('📬 Received event:', event);
 
               // Next line should be data
               const nextLine = lines[i + 1]?.trim();
