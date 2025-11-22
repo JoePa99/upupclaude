@@ -103,14 +103,14 @@ export function CreateChannelModal({
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-background border border-border rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              className="bg-white/90 backdrop-blur-2xl border border-white/90 rounded-3xl shadow-super-glass max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             >
               {/* Header */}
-              <div className="p-6 border-b border-border">
-                <h2 className="text-2xl font-serif font-semibold text-foreground">
+              <div className="p-6 border-b border-white/50">
+                <h2 className="text-2xl font-extrabold text-luminous-text-primary">
                   Create Channel
                 </h2>
-                <p className="text-sm text-foreground-secondary mt-1">
+                <p className="text-sm text-luminous-text-secondary mt-1">
                   Create a new channel for your team
                 </p>
               </div>
@@ -125,7 +125,7 @@ export function CreateChannelModal({
 
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-semibold text-foreground mb-2">
+                  <label className="block text-sm font-bold text-luminous-text-primary mb-2">
                     Channel Name
                   </label>
                   <input
@@ -134,13 +134,13 @@ export function CreateChannelModal({
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g., general, sales-team, project-updates"
                     required
-                    className="w-full bg-background-secondary border border-border rounded-lg px-4 py-3 text-foreground placeholder:text-foreground-tertiary focus:outline-none focus:border-accent transition-colors"
+                    className="w-full bg-white/50 border border-white/70 rounded-xl px-4 py-3 text-luminous-text-primary placeholder:text-luminous-text-tertiary focus:outline-none focus:border-luminous-accent-cyan transition-colors"
                   />
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-semibold text-foreground mb-2">
+                  <label className="block text-sm font-bold text-luminous-text-primary mb-2">
                     Description (Optional)
                   </label>
                   <textarea
@@ -148,7 +148,7 @@ export function CreateChannelModal({
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="What is this channel about?"
                     rows={3}
-                    className="w-full bg-background-secondary border border-border rounded-lg px-4 py-3 text-foreground placeholder:text-foreground-tertiary focus:outline-none focus:border-accent transition-colors resize-none"
+                    className="w-full bg-white/50 border border-white/70 rounded-xl px-4 py-3 text-luminous-text-primary placeholder:text-luminous-text-tertiary focus:outline-none focus:border-luminous-accent-cyan transition-colors resize-none"
                   />
                 </div>
 
@@ -159,13 +159,13 @@ export function CreateChannelModal({
                       type="checkbox"
                       checked={isPrivate}
                       onChange={(e) => setIsPrivate(e.target.checked)}
-                      className="w-4 h-4 rounded border-border text-accent focus:ring-accent focus:ring-offset-0"
+                      className="w-4 h-4 rounded border-white/70 text-luminous-accent-cyan focus:ring-luminous-accent-cyan focus:ring-offset-0"
                     />
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-foreground group-hover:text-accent transition-colors">
+                      <div className="text-sm font-bold text-luminous-text-primary group-hover:text-luminous-accent-cyan transition-colors">
                         Private Channel
                       </div>
-                      <div className="text-xs text-foreground-tertiary">
+                      <div className="text-xs text-luminous-text-tertiary">
                         Only invited members can access this channel
                       </div>
                     </div>
@@ -174,53 +174,53 @@ export function CreateChannelModal({
 
                 {/* Members */}
                 <div>
-                  <label className="block text-sm font-semibold text-foreground mb-2">
+                  <label className="block text-sm font-bold text-luminous-text-primary mb-2">
                     Add Members (Optional)
                   </label>
-                  <div className="max-h-40 overflow-y-auto bg-background-secondary border border-border rounded-lg p-3 space-y-2">
+                  <div className="max-h-40 overflow-y-auto bg-white/40 border border-white/70 rounded-xl p-3 space-y-2">
                     {workspaceUsers.map((user) => (
                       <label
                         key={user.id}
-                        className="flex items-center gap-3 cursor-pointer hover:bg-background-tertiary rounded-lg p-2 transition-colors"
+                        className="flex items-center gap-3 cursor-pointer hover:bg-white/60 rounded-lg p-2 transition-colors"
                       >
                         <input
                           type="checkbox"
                           checked={selectedMemberIds.includes(user.id)}
                           onChange={() => toggleMember(user.id)}
-                          className="w-4 h-4 rounded border-border text-accent focus:ring-accent focus:ring-offset-0"
+                          className="w-4 h-4 rounded border-white/70 text-luminous-accent-cyan focus:ring-luminous-accent-cyan focus:ring-offset-0"
                         />
                         <div className="flex-1">
-                          <div className="text-sm text-foreground">{user.name}</div>
-                          <div className="text-xs text-foreground-tertiary">{user.email}</div>
+                          <div className="text-sm text-luminous-text-primary font-medium">{user.name}</div>
+                          <div className="text-xs text-luminous-text-tertiary">{user.email}</div>
                         </div>
                       </label>
                     ))}
                   </div>
-                  <p className="text-xs text-foreground-tertiary mt-2">
+                  <p className="text-xs text-luminous-text-tertiary mt-2">
                     You will be added as a member automatically
                   </p>
                 </div>
 
                 {/* Assistants */}
                 <div>
-                  <label className="block text-sm font-semibold text-foreground mb-2">
+                  <label className="block text-sm font-bold text-luminous-text-primary mb-2">
                     Add AI Assistants (Optional)
                   </label>
-                  <div className="max-h-40 overflow-y-auto bg-background-secondary border border-border rounded-lg p-3 space-y-2">
+                  <div className="max-h-40 overflow-y-auto bg-white/40 border border-white/70 rounded-xl p-3 space-y-2">
                     {workspaceAssistants.map((assistant) => (
                       <label
                         key={assistant.id}
-                        className="flex items-center gap-3 cursor-pointer hover:bg-background-tertiary rounded-lg p-2 transition-colors"
+                        className="flex items-center gap-3 cursor-pointer hover:bg-white/60 rounded-lg p-2 transition-colors"
                       >
                         <input
                           type="checkbox"
                           checked={selectedAssistantIds.includes(assistant.id)}
                           onChange={() => toggleAssistant(assistant.id)}
-                          className="w-4 h-4 rounded border-border text-accent focus:ring-accent focus:ring-offset-0"
+                          className="w-4 h-4 rounded border-white/70 text-luminous-accent-cyan focus:ring-luminous-accent-cyan focus:ring-offset-0"
                         />
                         <div className="flex-1">
-                          <div className="text-sm text-foreground">{assistant.name}</div>
-                          <div className="text-xs text-foreground-tertiary">{assistant.role}</div>
+                          <div className="text-sm text-luminous-text-primary font-medium">{assistant.name}</div>
+                          <div className="text-xs text-luminous-text-tertiary">{assistant.role}</div>
                         </div>
                       </label>
                     ))}
@@ -233,7 +233,7 @@ export function CreateChannelModal({
                     type="button"
                     onClick={onClose}
                     disabled={creating}
-                    className="flex-1 px-6 py-3 bg-background-secondary hover:bg-background-tertiary text-foreground rounded-lg font-semibold transition-colors disabled:opacity-50"
+                    className="flex-1 px-6 py-3 bg-white/50 hover:bg-white/70 text-luminous-text-primary rounded-xl font-bold transition-colors disabled:opacity-50 border border-white/70"
                   >
                     Cancel
                   </button>
@@ -241,7 +241,7 @@ export function CreateChannelModal({
                     type="submit"
                     disabled={creating || !name}
                     className={cn(
-                      'flex-1 px-6 py-3 bg-accent hover:bg-accent-hover text-background rounded-lg font-semibold transition-all',
+                      'flex-1 px-6 py-3 bg-gradient-to-r from-luminous-accent-cyan to-luminous-accent-purple hover:from-luminous-accent-cyan/90 hover:to-luminous-accent-purple/90 text-white rounded-xl font-bold transition-all shadow-luminous',
                       'disabled:opacity-50 disabled:cursor-not-allowed'
                     )}
                   >
