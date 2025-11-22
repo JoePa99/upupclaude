@@ -19,11 +19,15 @@ export async function streamOpenAI(
     throw new Error('OpenAI API key not configured');
   }
 
+  // Use sensible defaults if not set
+  const temperature = assistant.temperature ?? 0.7;
+  const maxTokens = assistant.max_tokens ?? 10000;
+
   console.log('🔵 OpenAI streaming request:', {
     model: assistant.model_name,
     messageLength: userMessage.length,
-    temperature: assistant.temperature,
-    max_tokens: assistant.max_tokens,
+    temperature,
+    maxTokens,
   });
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -38,8 +42,8 @@ export async function streamOpenAI(
         { role: 'system', content: assistant.system_prompt },
         { role: 'user', content: userMessage },
       ],
-      temperature: assistant.temperature,
-      max_tokens: assistant.max_tokens,
+      temperature,
+      max_tokens: maxTokens,
       stream: true, // Enable streaming
     }),
   });
@@ -131,11 +135,15 @@ export async function streamAnthropic(
     throw new Error('Anthropic API key not configured');
   }
 
+  // Use sensible defaults if not set
+  const temperature = assistant.temperature ?? 0.7;
+  const maxTokens = assistant.max_tokens ?? 10000;
+
   console.log('🟣 Anthropic streaming request:', {
     model: assistant.model_name,
     messageLength: userMessage.length,
-    temperature: assistant.temperature,
-    max_tokens: assistant.max_tokens,
+    temperature,
+    maxTokens,
   });
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -151,8 +159,8 @@ export async function streamAnthropic(
       messages: [
         { role: 'user', content: userMessage },
       ],
-      temperature: assistant.temperature,
-      max_tokens: assistant.max_tokens,
+      temperature,
+      max_tokens: maxTokens,
       stream: true, // Enable streaming
     }),
   });
@@ -245,11 +253,15 @@ export async function streamGoogle(
     throw new Error('Google AI API key not configured');
   }
 
+  // Use sensible defaults if not set
+  const temperature = assistant.temperature ?? 0.7;
+  const maxTokens = assistant.max_tokens ?? 10000;
+
   console.log('🟢 Google AI streaming request:', {
     model: assistant.model_name,
     messageLength: userMessage.length,
-    temperature: assistant.temperature,
-    max_tokens: assistant.max_tokens,
+    temperature,
+    maxTokens,
   });
 
   const response = await fetch(
@@ -268,8 +280,8 @@ export async function streamGoogle(
           },
         ],
         generationConfig: {
-          temperature: assistant.temperature,
-          maxOutputTokens: assistant.max_tokens,
+          temperature,
+          maxOutputTokens: maxTokens,
         },
       }),
     }
