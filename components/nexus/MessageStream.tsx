@@ -45,11 +45,41 @@ interface MessageCardProps {
 
 function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [copied, setCopied] = useState(false);
   const isAI = message.authorType === 'assistant';
 
   // Extract metadata for artifacts
   const hasArtifact = message.metadata?.artifact_type;
   const reasoning = message.metadata?.reasoning;
+
+  // Copy to clipboard with markdown or plain text
+  const handleCopy = (format: 'markdown' | 'plaintext') => {
+    const textToCopy = format === 'markdown'
+      ? message.content
+      : message.content.replace(/[#*`_~\[\]()]/g, '').replace(/\n{3,}/g, '\n\n');
+
+    navigator.clipboard.writeText(textToCopy);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Download as file
+  const handleDownload = (format: 'md' | 'txt') => {
+    const content = format === 'md'
+      ? message.content
+      : message.content.replace(/[#*`_~\[\]()]/g, '').replace(/\n{3,}/g, '\n\n');
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${message.author.name.replace(/\s+/g, '-')}-${new Date(message.timestamp).toISOString().slice(0, 10)}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   // Reusable markdown components for both progressive and standard rendering
   const getMarkdownComponents = () => ({
@@ -272,29 +302,44 @@ function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
     >
       <div className="max-w-3xl w-full">
         {/* Agent Header */}
-        <div className="flex items-start gap-3 mb-3" style={{ userSelect: 'none' }}>
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-extrabold text-base flex-shrink-0 shadow-luminous"
-            style={{ backgroundColor: agentColor }}
-          >
-            {message.author.name.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-base font-extrabold text-luminous-text-primary">
-                {message.author.name}
-              </span>
-              <span
-                className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
-                style={{ backgroundColor: agentColor }}
-              >
-                {message.author.role}
+        <div className="flex items-start gap-3 mb-3 justify-between" style={{ userSelect: 'none' }}>
+          <div className="flex items-start gap-3">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-extrabold text-base flex-shrink-0 shadow-luminous"
+              style={{ backgroundColor: agentColor }}
+            >
+              {message.author.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-base font-extrabold text-luminous-text-primary">
+                  {message.author.name}
+                </span>
+                <span
+                  className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
+                  style={{ backgroundColor: agentColor }}
+                >
+                  {message.author.role}
+                </span>
+              </div>
+              <span className="text-xs text-luminous-text-tertiary font-medium">
+                {new Date(message.timestamp).toLocaleTimeString()}
               </span>
             </div>
-            <span className="text-xs text-luminous-text-tertiary font-medium">
-              {new Date(message.timestamp).toLocaleTimeString()}
-            </span>
           </div>
+
+          {/* Export Button */}
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="px-3 py-1.5 rounded-xl bg-white/60 hover:bg-white/80 backdrop-blur-md border border-white/70 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+            title="Copy or download this message"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-luminous-text-secondary">
+              <path d="M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M14 10V13C14 13.5523 13.5523 14 13 14H3C2.44772 14 2 13.5523 2 13V10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            <span className="text-xs font-bold text-luminous-text-secondary">Export</span>
+          </button>
         </div>
 
         {/* Super-Glass Card */}
@@ -408,6 +453,120 @@ function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
             </div>
           )}
         </div>
+
+        {/* Export Modal */}
+        <AnimatePresence>
+          {showExportModal && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowExportModal(false)}
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
+              />
+
+              {/* Modal */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl max-h-[90vh] bg-white/90 backdrop-blur-2xl border-2 border-white/90 rounded-3xl shadow-super-glass z-50 overflow-hidden flex flex-col"
+              >
+                {/* Modal Header */}
+                <div className="px-6 py-4 border-b border-luminous-text-tertiary/10 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-extrabold text-luminous-text-primary">
+                      Export Message
+                    </h3>
+                    <p className="text-sm text-luminous-text-tertiary mt-1">
+                      {message.author.name} • {new Date(message.timestamp).toLocaleString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowExportModal(false)}
+                    className="w-8 h-8 rounded-full bg-white/60 hover:bg-white/80 border border-white/70 flex items-center justify-center transition-all"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Modal Content - Full Message */}
+                <div className="flex-1 overflow-y-auto px-6 py-6">
+                  <div className="prose prose-sm max-w-none text-luminous-text-primary">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={getMarkdownComponents()}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+
+                {/* Modal Footer - Action Buttons */}
+                <div className="px-6 py-4 border-t border-luminous-text-tertiary/10 bg-white/50 flex items-center gap-3">
+                  <button
+                    onClick={() => handleCopy('markdown')}
+                    className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-luminous-accent-cyan to-luminous-accent-purple text-white font-bold text-sm hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    {copied ? (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <path d="M3 8L6 11L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <rect x="5" y="5" width="9" height="9" rx="1" stroke="currentColor" strokeWidth="2"/>
+                          <path d="M11 3H3C2.44772 3 2 3.44772 2 4V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                        </svg>
+                        Copy Markdown
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => handleCopy('plaintext')}
+                    className="flex-1 px-4 py-3 rounded-xl bg-white border-2 border-luminous-accent-purple text-luminous-accent-purple font-bold text-sm hover:bg-luminous-accent-purple hover:text-white transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <rect x="5" y="5" width="9" height="9" rx="1" stroke="currentColor" strokeWidth="2"/>
+                      <path d="M11 3H3C2.44772 3 2 3.44772 2 4V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    Copy Plain Text
+                  </button>
+
+                  <button
+                    onClick={() => handleDownload('md')}
+                    className="px-4 py-3 rounded-xl bg-white border-2 border-luminous-accent-cyan text-luminous-accent-cyan font-bold text-sm hover:bg-luminous-accent-cyan hover:text-white transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M14 10V13C14 13.5523 13.5523 14 13 14H3C2.44772 14 2 13.5523 2 13V10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    .md
+                  </button>
+
+                  <button
+                    onClick={() => handleDownload('txt')}
+                    className="px-4 py-3 rounded-xl bg-white border-2 border-luminous-accent-coral text-luminous-accent-coral font-bold text-sm hover:bg-luminous-accent-coral hover:text-white transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M14 10V13C14 13.5523 13.5523 14 13 14H3C2.44772 14 2 13.5523 2 13V10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    .txt
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   );
