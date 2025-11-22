@@ -192,7 +192,7 @@ function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  // Paragraphs
+                  // Paragraphs - using primary for better readability
                   p: ({ children }) => (
                     <p className="mb-4 last:mb-0 leading-relaxed text-luminous-text-primary">
                       {children}
@@ -240,7 +240,7 @@ function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
                     </strong>
                   ),
                   em: ({ children }) => (
-                    <em className="text-luminous-text-secondary italic">{children}</em>
+                    <em className="text-luminous-text-primary italic opacity-90">{children}</em>
                   ),
 
                   // Code blocks with syntax highlighting and expandable UI
