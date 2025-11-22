@@ -27,6 +27,26 @@ export async function POST(request: Request) {
 
     console.log(' Assistant found:', assistant.name, 'Provider:', assistant.model_provider);
 
+    // Fetch recent conversation history (last 20 messages to provide context)
+    const { data: recentMessages, error: messagesError } = await (adminSupabase
+      .from('messages') as any)
+      .select('content, author_type, author_id')
+      .eq('channel_id', channelId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (messagesError) {
+      console.error('⚠️ Failed to fetch conversation history:', messagesError);
+    }
+
+    // Build conversation history in reverse chronological order (oldest first)
+    const conversationHistory = (recentMessages || []).reverse().map((msg: any) => ({
+      role: msg.author_type === 'assistant' ? 'assistant' : 'user',
+      content: msg.content,
+    }));
+
+    console.log('📚 Loaded', conversationHistory.length, 'messages of conversation history');
+
     // Create a TransformStream for Server-Sent Events
     const encoder = new TextEncoder();
     let fullText = '';
@@ -93,11 +113,11 @@ export async function POST(request: Request) {
           // Call appropriate streaming provider
           console.log('🌊 Starting stream with provider:', assistant.model_provider);
           if (assistant.model_provider === 'openai') {
-            await streamOpenAI(assistant, userMessage, callbacks);
+            await streamOpenAI(assistant, userMessage, conversationHistory, callbacks);
           } else if (assistant.model_provider === 'anthropic') {
-            await streamAnthropic(assistant, userMessage, callbacks);
+            await streamAnthropic(assistant, userMessage, conversationHistory, callbacks);
           } else if (assistant.model_provider === 'google') {
-            await streamGoogle(assistant, userMessage, callbacks);
+            await streamGoogle(assistant, userMessage, conversationHistory, callbacks);
           } else {
             throw new Error('Unsupported AI provider');
           }
