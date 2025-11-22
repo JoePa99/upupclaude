@@ -309,6 +309,86 @@ export function PageClient({
     (m) => m.channelId === currentChannel.id
   );
 
+  // Handle streaming AI responses
+  const handleStreamingResponse = (streamConfig: { assistantId: string; channelId: string; userMessage: string }) => {
+    console.log('🌊 Opening streaming connection for assistant:', streamConfig.assistantId);
+
+    // Fetch to initiate the stream
+    fetch('/api/ai/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(streamConfig),
+    }).then(async (response) => {
+      const reader = response.body?.getReader();
+      if (!reader) return;
+
+      const decoder = new TextDecoder();
+      let messageId: string | null = null;
+      let currentText = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              const event = line.slice(7);
+              const dataLine = lines[lines.indexOf(line) + 1];
+              if (!dataLine || !dataLine.startsWith('data: ')) continue;
+
+              const data = JSON.parse(dataLine.slice(6));
+
+              if (event === 'message_created') {
+                messageId = data.messageId;
+                // Create initial empty message
+                const assistant = workspace.assistants.find(a => a.id === streamConfig.assistantId);
+                if (assistant && messageId) {
+                  const initialMessage: MessageType = {
+                    id: messageId,
+                    channelId: streamConfig.channelId,
+                    content: '',
+                    author: assistant,
+                    authorId: assistant.id,
+                    authorType: 'assistant',
+                    timestamp: new Date(),
+                    mentions: [],
+                    countsTowardLimit: false,
+                  };
+                  setMessages((prev) => [...prev, initialMessage]);
+                }
+              } else if (event === 'token' && messageId) {
+                currentText += data.token;
+                // Update message content
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === messageId ? { ...m, content: currentText } : m
+                  )
+                );
+              } else if (event === 'complete') {
+                // Remove typing indicator
+                setTypingAssistants((prev) => prev.filter((id) => id !== streamConfig.assistantId));
+                console.log('✅ Stream complete for assistant:', streamConfig.assistantId);
+              } else if (event === 'error') {
+                console.error('Stream error:', data.error);
+                setTypingAssistants((prev) => prev.filter((id) => id !== streamConfig.assistantId));
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Streaming error:', error);
+        setTypingAssistants((prev) => prev.filter((id) => id !== streamConfig.assistantId));
+      }
+    }).catch((error) => {
+      console.error('Failed to initiate stream:', error);
+      setTypingAssistants((prev) => prev.filter((id) => id !== streamConfig.assistantId));
+    });
+  };
+
   const handleSendMessage = async (content: string, mentions: string[]) => {
     if (sending) return;
 
@@ -339,14 +419,11 @@ export function PageClient({
         throw new Error(data.error || 'Failed to send message');
       }
 
-      // If AI responses were returned, add them to state immediately
-      if (data.aiResponses && data.aiResponses.length > 0) {
-        const transformedAiResponses = data.aiResponses.map((msg: any) => transformMessage(msg));
-        setMessages((prev) => [...prev, ...transformedAiResponses]);
-
-        // Remove typing indicators for assistants that responded
-        const respondedAssistantIds = data.aiResponses.map((msg: any) => msg.author_id);
-        setTypingAssistants((prev) => prev.filter((id) => !respondedAssistantIds.includes(id)));
+      // If streaming assistants are returned, open EventSource connections
+      if (data.streamingAssistants && data.streamingAssistants.length > 0) {
+        data.streamingAssistants.forEach((streamConfig: any) => {
+          handleStreamingResponse(streamConfig);
+        });
       }
     } catch (error: any) {
       console.error('Error sending message:', error);

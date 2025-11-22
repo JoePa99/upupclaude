@@ -72,64 +72,22 @@ export async function POST(request: Request) {
       author: author,
     };
 
-    // Trigger AI responses via Supabase Edge Function
+    // Trigger AI responses via streaming API
     if (mentions && mentions.length > 0) {
-      console.log('🔔 Triggering', mentions.length, 'AI response(s) via Edge Function');
+      console.log('🌊 Triggering', mentions.length, 'streaming AI response(s)');
 
-      // Call Edge Function for each mentioned assistant and await to catch errors
-      const edgeFunctionResults = await Promise.allSettled(
-        mentions.map(async (assistantId: string) => {
-          try {
-            console.log('  → Invoking Edge Function for assistant:', assistantId);
-            const result = await supabase.functions.invoke('ai-respond', {
-              body: {
-                assistantId,
-                channelId,
-                userMessage: content,
-                command,
-              },
-            });
-
-            if (result.error) {
-              console.error('  ✗ Edge Function error for', assistantId, ':', result.error);
-              return { assistantId, success: false, error: result.error };
-            } else {
-              console.log('  ✓ Edge Function succeeded for', assistantId);
-              return { assistantId, success: true, data: result.data };
-            }
-          } catch (err) {
-            console.error('  ✗ Failed to invoke Edge Function for', assistantId, ':', err);
-            return { assistantId, success: false, error: err };
-          }
-        })
-      );
-
-      console.log('Edge Function invocation results:', edgeFunctionResults);
-
-      // Collect successful AI response messages to return to client
-      const aiResponses = [];
-      for (const result of edgeFunctionResults) {
-        if (result.status === 'fulfilled' && result.value.success && result.value.data?.message) {
-          const aiMessage = result.value.data.message;
-
-          // Fetch assistant info for the response
-          const { data: assistant } = await (supabase
-            .from('assistants') as any)
-            .select('id, name, avatar_url, role')
-            .eq('id', aiMessage.author_id)
-            .single();
-
-          aiResponses.push({
-            ...aiMessage,
-            author: assistant || { id: aiMessage.author_id, name: 'Unknown', email: '', role: 'assistant' },
-          });
-        }
-      }
+      // Start streaming responses for each mentioned assistant
+      // The frontend will handle the EventSource connection
+      const streamingAssistants = mentions.map((assistantId: string) => ({
+        assistantId,
+        channelId,
+        userMessage: content,
+      }));
 
       return NextResponse.json({
         success: true,
         message: completeMessage,
-        aiResponses: aiResponses.length > 0 ? aiResponses : undefined,
+        streamingAssistants, // Tell frontend to open streaming connections
       });
     }
 
