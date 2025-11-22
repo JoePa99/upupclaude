@@ -107,7 +107,14 @@ export async function streamOpenAI(
     }
 
     console.log('🔵 OpenAI stream complete, calling onComplete with', fullText.length, 'characters');
-    callbacks.onComplete(fullText);
+
+    // If no content was received, treat it as an error
+    if (fullText.length === 0 && tokenCount === 0) {
+      console.error('🔵 OpenAI stream completed but received no tokens - this indicates an API error');
+      callbacks.onError(new Error('OpenAI API returned empty response. Check API key, model name, and request parameters in server logs.'));
+    } else {
+      callbacks.onComplete(fullText);
+    }
   } catch (error: any) {
     console.error('🔵 OpenAI stream error:', error);
     callbacks.onError(error);
@@ -214,7 +221,14 @@ export async function streamAnthropic(
     }
 
     console.log('🟣 Anthropic stream complete, calling onComplete with', fullText.length, 'characters');
-    callbacks.onComplete(fullText);
+
+    // If no content was received, treat it as an error
+    if (fullText.length === 0 && tokenCount === 0) {
+      console.error('🟣 Anthropic stream completed but received no tokens - this indicates an API error');
+      callbacks.onError(new Error('Anthropic API returned empty response. Check API key, model name, and request parameters in server logs.'));
+    } else {
+      callbacks.onComplete(fullText);
+    }
   } catch (error: any) {
     console.error('🟣 Anthropic stream error:', error);
     callbacks.onError(error);
@@ -318,7 +332,14 @@ export async function streamGoogle(
     }
 
     console.log('🟢 Google AI stream complete, calling onComplete with', fullText.length, 'characters');
-    callbacks.onComplete(fullText);
+
+    // If no content was received, treat it as an error
+    if (fullText.length === 0 && tokenCount === 0) {
+      console.error('🟢 Google AI stream completed but received no tokens - this indicates an API error');
+      callbacks.onError(new Error('Google AI API returned empty response. Check API key, model name, and request parameters in server logs.'));
+    } else {
+      callbacks.onComplete(fullText);
+    }
   } catch (error: any) {
     console.error('🟢 Google AI stream error:', error);
     callbacks.onError(error);
