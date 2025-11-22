@@ -12,6 +12,7 @@ interface StreamCallbacks {
 export async function streamOpenAI(
   assistant: any,
   userMessage: string,
+  conversationHistory: Array<{ role: string; content: string }>,
   callbacks: StreamCallbacks
 ): Promise<void> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -23,12 +24,39 @@ export async function streamOpenAI(
   const temperature = assistant.temperature ?? 0.7;
   const maxTokens = assistant.max_tokens ?? 10000;
 
+  // Detect thinking models (o1, o3, gpt-5.x) which have different parameter requirements
+  const modelName = assistant.model_name.toLowerCase();
+  const isThinkingModel = modelName.includes('o1') || modelName.includes('o3') || modelName.includes('gpt-5');
+
   console.log('🔵 OpenAI streaming request:', {
     model: assistant.model_name,
     messageLength: userMessage.length,
-    temperature,
+    temperature: isThinkingModel ? 'N/A (thinking model)' : temperature,
     maxTokens,
+    isThinkingModel,
   });
+
+  // Build request body based on model type
+  // Include conversation history for context, then add the current user message
+  const messages = [
+    { role: 'system', content: assistant.system_prompt },
+    ...conversationHistory,
+    { role: 'user', content: userMessage },
+  ];
+
+  const requestBody: any = {
+    model: assistant.model_name,
+    messages,
+    stream: true,
+  };
+
+  // Thinking models don't support temperature and use max_completion_tokens
+  if (isThinkingModel) {
+    requestBody.max_completion_tokens = maxTokens;
+  } else {
+    requestBody.temperature = temperature;
+    requestBody.max_tokens = maxTokens;
+  }
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -36,16 +64,7 @@ export async function streamOpenAI(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model: assistant.model_name,
-      messages: [
-        { role: 'system', content: assistant.system_prompt },
-        { role: 'user', content: userMessage },
-      ],
-      temperature,
-      max_tokens: maxTokens,
-      stream: true, // Enable streaming
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   console.log('🔵 OpenAI response status:', response.status, response.statusText);
@@ -128,6 +147,7 @@ export async function streamOpenAI(
 export async function streamAnthropic(
   assistant: any,
   userMessage: string,
+  conversationHistory: Array<{ role: string; content: string }>,
   callbacks: StreamCallbacks
 ): Promise<void> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -146,6 +166,12 @@ export async function streamAnthropic(
     maxTokens,
   });
 
+  // Include conversation history for context, then add the current user message
+  const messages = [
+    ...conversationHistory,
+    { role: 'user', content: userMessage },
+  ];
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -156,9 +182,7 @@ export async function streamAnthropic(
     body: JSON.stringify({
       model: assistant.model_name,
       system: assistant.system_prompt,
-      messages: [
-        { role: 'user', content: userMessage },
-      ],
+      messages,
       temperature,
       max_tokens: maxTokens,
       stream: true, // Enable streaming
@@ -246,6 +270,7 @@ export async function streamAnthropic(
 export async function streamGoogle(
   assistant: any,
   userMessage: string,
+  conversationHistory: Array<{ role: string; content: string }>,
   callbacks: StreamCallbacks
 ): Promise<void> {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
@@ -264,6 +289,26 @@ export async function streamGoogle(
     maxTokens,
   });
 
+  // Build conversation history in Google's format
+  // Google uses a different format: contents array with parts
+  const contents = [
+    // Start with system prompt as first user message
+    {
+      role: 'user',
+      parts: [{ text: assistant.system_prompt }],
+    },
+    // Add conversation history
+    ...conversationHistory.map((msg: any) => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }],
+    })),
+    // Add current user message
+    {
+      role: 'user',
+      parts: [{ text: userMessage }],
+    },
+  ];
+
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${assistant.model_name}:streamGenerateContent?key=${apiKey}`,
     {
@@ -272,13 +317,7 @@ export async function streamGoogle(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: assistant.system_prompt + '\n\n' + userMessage },
-            ],
-          },
-        ],
+        contents,
         generationConfig: {
           temperature,
           maxOutputTokens: maxTokens,
