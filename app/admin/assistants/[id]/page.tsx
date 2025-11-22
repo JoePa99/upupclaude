@@ -34,6 +34,7 @@ const MODEL_OPTIONS = {
     { value: 'gpt-5.1', label: 'GPT-5.1 Thinking' },
     { value: 'gpt-5.1-chat-latest', label: 'GPT-5.1 Instant' },
     { value: 'gpt-5-nano', label: 'GPT-5 Nano' },
+    { value: 'gpt-4o', label: 'GPT-4o' },
   ],
   anthropic: [
     { value: 'claude-opus-4-1', label: 'Claude Opus 4.1' },

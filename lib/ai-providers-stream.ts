@@ -23,12 +23,35 @@ export async function streamOpenAI(
   const temperature = assistant.temperature ?? 0.7;
   const maxTokens = assistant.max_tokens ?? 10000;
 
+  // Detect thinking models (o1, o3, gpt-5.x) which have different parameter requirements
+  const modelName = assistant.model_name.toLowerCase();
+  const isThinkingModel = modelName.includes('o1') || modelName.includes('o3') || modelName.includes('gpt-5');
+
   console.log('🔵 OpenAI streaming request:', {
     model: assistant.model_name,
     messageLength: userMessage.length,
-    temperature,
+    temperature: isThinkingModel ? 'N/A (thinking model)' : temperature,
     maxTokens,
+    isThinkingModel,
   });
+
+  // Build request body based on model type
+  const requestBody: any = {
+    model: assistant.model_name,
+    messages: [
+      { role: 'system', content: assistant.system_prompt },
+      { role: 'user', content: userMessage },
+    ],
+    stream: true,
+  };
+
+  // Thinking models don't support temperature and use max_completion_tokens
+  if (isThinkingModel) {
+    requestBody.max_completion_tokens = maxTokens;
+  } else {
+    requestBody.temperature = temperature;
+    requestBody.max_tokens = maxTokens;
+  }
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -36,16 +59,7 @@ export async function streamOpenAI(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model: assistant.model_name,
-      messages: [
-        { role: 'system', content: assistant.system_prompt },
-        { role: 'user', content: userMessage },
-      ],
-      temperature,
-      max_tokens: maxTokens,
-      stream: true, // Enable streaming
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   console.log('🔵 OpenAI response status:', response.status, response.statusText);
