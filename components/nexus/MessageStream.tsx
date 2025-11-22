@@ -1,17 +1,10 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Message as MessageType } from '@/types';
-import { SelectionHighlightOverlay } from './SelectionHighlightOverlay';
-import { SelectionToolbar } from './SelectionToolbar';
-import { useTextSelection } from '@/hooks/useTextSelection';
-import { usePinStore } from '@/stores/pinStore';
-import { useArtifactStore } from '@/stores/artifactStore';
 import { ExpandableCodeBlock } from './ExpandableCodeBlock';
 import { TableOfContents } from './TableOfContents';
 
@@ -21,93 +14,13 @@ interface MessageStreamProps {
 }
 
 /**
- * Copy button for code blocks with feedback animation
- */
-function CopyButton({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <motion.button
-      onClick={handleCopy}
-      className="px-3 py-1.5 text-xs rounded-lg font-bold bg-white/50 hover:bg-white/80 border border-white/70 text-luminous-text-primary hover:text-luminous-accent-cyan transition-all shadow-sm"
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-    >
-      {copied ? '✓ Copied!' : '📋 Copy'}
-    </motion.button>
-  );
-}
-
-/**
- * NEXUS Message Stream - Center chat with glass cards
- * Human: Minimal text on glass
- * AI Agent: Super-Glass cards with collapsible reasoning + action buttons
- * Now with text selection plus pinning and artifact drafting!
+ * NEXUS Message Stream - Clean, lightweight conversation flow
+ * Substantial outputs (code blocks, tables) are placed in structured containers
+ * that users can interact with independently
  */
 export function MessageStream({ messages, onArtifactOpen }: MessageStreamProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { selectedText, position, highlightRects, clearSelection, restoreSelection } = useTextSelection(containerRef);
-  const { addPin, openPinboard } = usePinStore();
-  const { addArtifact, openPanel } = useArtifactStore();
-  const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
-
-  const handleCreateArtifact = (text: string) => {
-    const fallbackMessageId = currentMessageId || messages[messages.length - 1]?.id;
-    const title = text.split('\n').find((line) => line.trim().length > 0)?.slice(0, 80) || 'New Artifact';
-
-    addArtifact({
-      content: text,
-      title,
-      sourceMessageId: fallbackMessageId,
-    });
-
-    clearSelection();
-    openPanel();
-  };
-
-  const handlePin = async (text: string) => {
-    console.log('📌 Pin clicked!', { text, currentMessageId, currentUserId });
-
-    addArtifact({
-      content: text,
-      title,
-      sourceMessageId: fallbackMessageId,
-    });
-
-    clearSelection();
-    openPanel();
-  };
-
-  const handleAskFollowUp = (text: string) => {
-    console.log('💬 Ask follow-up clicked:', text);
-    alert(`Ask follow-up feature coming soon!\n\nSelected text: "${text}"`);
-    clearSelection();
-  };
-
-  const handleCopy = async (text: string) => {
-    console.log('📋 Copy clicked:', text);
-    try {
-      await navigator.clipboard.writeText(text);
-      console.log('✅ Copied to clipboard!');
-    } catch (error) {
-      console.error('❌ Failed to copy:', error);
-      alert('Failed to copy to clipboard. Please try again.');
-    }
-  };
-
-  const handleEdit = (text: string) => {
-    console.log('✏️ Edit clicked:', text);
-    handleCreateArtifact(text);
-  };
-
   return (
-    <div ref={containerRef} className="px-8 py-8 space-y-6">
+    <div className="px-8 py-8 space-y-6">
       <AnimatePresence initial={false}>
         {messages.map((message, index) => (
           <MessageCard
@@ -115,24 +28,9 @@ export function MessageStream({ messages, onArtifactOpen }: MessageStreamProps) 
             message={message}
             index={index}
             onArtifactOpen={onArtifactOpen}
-            onMessageInteract={() => setCurrentMessageId(message.id)}
           />
         ))}
       </AnimatePresence>
-
-      <SelectionHighlightOverlay rects={highlightRects} />
-
-      {/* Selection Toolbar */}
-      <SelectionToolbar
-        selectedText={selectedText}
-        position={position}
-        onPin={handlePin}
-        onCreateArtifact={handleCreateArtifact}
-        onAskFollowUp={handleAskFollowUp}
-        onCopy={handleCopy}
-        onEdit={handleEdit}
-        onRestoreSelection={restoreSelection}
-      />
     </div>
   );
 }
@@ -141,10 +39,9 @@ interface MessageCardProps {
   message: MessageType;
   index: number;
   onArtifactOpen?: (message: MessageType) => void;
-  onMessageInteract?: () => void;
 }
 
-function MessageCard({ message, index, onArtifactOpen, onMessageInteract }: MessageCardProps) {
+function MessageCard({ message, index, onArtifactOpen }: MessageCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const isAI = message.authorType === 'assistant';
 
@@ -208,7 +105,6 @@ function MessageCard({ message, index, onArtifactOpen, onMessageInteract }: Mess
       exit={{ opacity: 0, y: -20 }}
       transition={{ delay: index * 0.05 }}
       className="flex justify-start"
-      onMouseEnter={onMessageInteract}
     >
       <div className="max-w-3xl w-full">
         {/* Agent Header */}

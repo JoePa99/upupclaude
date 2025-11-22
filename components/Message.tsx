@@ -8,7 +8,6 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useState } from 'react';
-import { ArtifactViewer } from './ArtifactViewer';
 
 interface MessageProps {
   message: MessageType;
@@ -38,17 +37,8 @@ export function Message({ message, index }: MessageProps) {
   const isAI = message.authorType === 'assistant';
   const author =
     message.authorType === 'human' ? message.author : message.author;
-  const [isArtifactOpen, setIsArtifactOpen] = useState(false);
 
   return (
-    <>
-      <ArtifactViewer
-        content={message.content}
-        isOpen={isArtifactOpen}
-        onClose={() => setIsArtifactOpen(false)}
-        title={isAI && 'model' in author ? `${author.name} Response` : undefined}
-      />
-
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -99,30 +89,6 @@ export function Message({ message, index }: MessageProps) {
             <span className="text-xs text-foreground-tertiary">
               {formatTime(message.timestamp)}
             </span>
-
-            {/* Expand button for AI messages */}
-            {isAI && (
-              <button
-                onClick={() => setIsArtifactOpen(true)}
-                className="text-xs text-foreground-tertiary hover:text-accent transition-colors opacity-0 group-hover:opacity-100 flex items-center gap-1"
-                title="Open in workspace"
-              >
-                <svg
-                  className="w-3 h-3"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-                  />
-                </svg>
-                Expand
-              </button>
-            )}
           </div>
 
           {/* Message content */}
@@ -335,6 +301,5 @@ export function Message({ message, index }: MessageProps) {
         </div>
       </div>
     </motion.div>
-    </>
   );
 }
