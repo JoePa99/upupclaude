@@ -21,7 +21,7 @@ export async function streamOpenAI(
 
   // Use sensible defaults if not set
   const temperature = assistant.temperature ?? 0.7;
-  const maxTokens = assistant.max_tokens ?? 2000;
+  const maxTokens = assistant.max_tokens ?? 10000;
 
   console.log('🔵 OpenAI streaming request:', {
     model: assistant.model_name,
@@ -137,7 +137,7 @@ export async function streamAnthropic(
 
   // Use sensible defaults if not set
   const temperature = assistant.temperature ?? 0.7;
-  const maxTokens = assistant.max_tokens ?? 2000;
+  const maxTokens = assistant.max_tokens ?? 10000;
 
   console.log('🟣 Anthropic streaming request:', {
     model: assistant.model_name,
@@ -255,7 +255,7 @@ export async function streamGoogle(
 
   // Use sensible defaults if not set
   const temperature = assistant.temperature ?? 0.7;
-  const maxTokens = assistant.max_tokens ?? 2000;
+  const maxTokens = assistant.max_tokens ?? 10000;
 
   console.log('🟢 Google AI streaming request:', {
     model: assistant.model_name,
