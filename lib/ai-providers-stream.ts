@@ -297,6 +297,7 @@ export async function streamGoogle(
   let fullText = '';
   let chunkCount = 0;
   let tokenCount = 0;
+  let buffer = ''; // Accumulate chunks since Google sends JSON array
 
   console.log('🟢 Starting Google AI stream read loop...');
 
@@ -310,24 +311,42 @@ export async function streamGoogle(
         break;
       }
 
-      const chunk = decoder.decode(value);
+      const chunk = decoder.decode(value, { stream: true });
       console.log('🟢 Google AI chunk', chunkCount, 'size:', chunk.length, 'preview:', chunk.substring(0, 100));
-      const lines = chunk.split('\n').filter(line => line.trim() !== '');
+      buffer += chunk;
 
-      for (const line of lines) {
-        try {
-          const parsed = JSON.parse(line);
-          const token = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          if (token) {
-            tokenCount++;
-            fullText += token;
-            callbacks.onToken(token);
-          } else {
-            console.log('🟢 Google AI response structure:', JSON.stringify(parsed).substring(0, 200));
-          }
-        } catch (e) {
-          console.warn('🟢 Failed to parse Google AI chunk:', line.substring(0, 100), e);
+      // Try to parse accumulated buffer as JSON array
+      // Google streaming returns [{...}, {...}] format
+      try {
+        // Remove trailing commas and close the array if it's incomplete
+        let parseBuffer = buffer.trim();
+
+        // If buffer starts with [ but doesn't end with ], add ] to try parsing
+        if (parseBuffer.startsWith('[') && !parseBuffer.endsWith(']')) {
+          parseBuffer = parseBuffer.replace(/,\s*$/, '') + ']';
         }
+
+        const parsed = JSON.parse(parseBuffer);
+        const responses = Array.isArray(parsed) ? parsed : [parsed];
+
+        // Process all responses in the array
+        for (const response of responses) {
+          const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          if (text && !fullText.includes(text)) {
+            // Google sends cumulative text, not deltas
+            // Only add the new part
+            const newText = text.substring(fullText.length);
+            if (newText) {
+              tokenCount++;
+              fullText = text;
+              callbacks.onToken(newText);
+              console.log('🟢 Extracted token:', newText.substring(0, 50));
+            }
+          }
+        }
+      } catch (e) {
+        // Buffer not complete yet, keep accumulating
+        console.log('🟢 Buffer not complete, continuing... (this is normal)');
       }
     }
 
