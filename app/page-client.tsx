@@ -325,56 +325,78 @@ export function PageClient({
       const decoder = new TextDecoder();
       let messageId: string | null = null;
       let currentText = '';
+      let buffer = ''; // Buffer for incomplete chunks
 
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
+          // Add new chunk to buffer
+          buffer += decoder.decode(value, { stream: true });
 
-          for (const line of lines) {
+          // Process complete lines
+          const lines = buffer.split('\n');
+          // Keep last incomplete line in buffer
+          buffer = lines.pop() || '';
+
+          // Parse SSE events
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+
             if (line.startsWith('event: ')) {
-              const event = line.slice(7);
-              const dataLine = lines[lines.indexOf(line) + 1];
-              if (!dataLine || !dataLine.startsWith('data: ')) continue;
+              const event = line.slice(7).trim();
 
-              const data = JSON.parse(dataLine.slice(6));
+              // Next line should be data
+              const nextLine = lines[i + 1]?.trim();
+              if (nextLine && nextLine.startsWith('data: ')) {
+                const dataStr = nextLine.slice(6);
 
-              if (event === 'message_created') {
-                messageId = data.messageId;
-                // Create initial empty message
-                const assistant = workspace.assistants.find(a => a.id === streamConfig.assistantId);
-                if (assistant && messageId) {
-                  const initialMessage: MessageType = {
-                    id: messageId,
-                    channelId: streamConfig.channelId,
-                    content: '',
-                    author: assistant,
-                    authorId: assistant.id,
-                    authorType: 'assistant',
-                    timestamp: new Date(),
-                    mentions: [],
-                    countsTowardLimit: false,
-                  };
-                  setMessages((prev) => [...prev, initialMessage]);
+                try {
+                  const data = JSON.parse(dataStr);
+
+                  if (event === 'message_created') {
+                    messageId = data.messageId;
+                    console.log('📝 Message created:', messageId);
+                    // Create initial empty message
+                    const assistant = workspace.assistants.find(a => a.id === streamConfig.assistantId);
+                    if (assistant && messageId) {
+                      const initialMessage: MessageType = {
+                        id: messageId,
+                        channelId: streamConfig.channelId,
+                        content: '',
+                        author: assistant,
+                        authorId: assistant.id,
+                        authorType: 'assistant',
+                        timestamp: new Date(),
+                        mentions: [],
+                        countsTowardLimit: false,
+                      };
+                      setMessages((prev) => [...prev, initialMessage]);
+                    }
+                  } else if (event === 'token' && messageId) {
+                    const token = data.token;
+                    currentText += token;
+                    console.log('🔤 Token received:', token);
+                    // Update message content
+                    setMessages((prev) =>
+                      prev.map((m) =>
+                        m.id === messageId ? { ...m, content: currentText } : m
+                      )
+                    );
+                  } else if (event === 'complete') {
+                    // Remove typing indicator
+                    setTypingAssistants((prev) => prev.filter((id) => id !== streamConfig.assistantId));
+                    console.log('✅ Stream complete for assistant:', streamConfig.assistantId);
+                  } else if (event === 'error') {
+                    console.error('❌ Stream error:', data.error);
+                    setTypingAssistants((prev) => prev.filter((id) => id !== streamConfig.assistantId));
+                  }
+                } catch (parseError) {
+                  console.error('Failed to parse SSE data:', dataStr, parseError);
                 }
-              } else if (event === 'token' && messageId) {
-                currentText += data.token;
-                // Update message content
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === messageId ? { ...m, content: currentText } : m
-                  )
-                );
-              } else if (event === 'complete') {
-                // Remove typing indicator
-                setTypingAssistants((prev) => prev.filter((id) => id !== streamConfig.assistantId));
-                console.log('✅ Stream complete for assistant:', streamConfig.assistantId);
-              } else if (event === 'error') {
-                console.error('Stream error:', data.error);
-                setTypingAssistants((prev) => prev.filter((id) => id !== streamConfig.assistantId));
+
+                i++; // Skip the data line we just processed
               }
             }
           }
